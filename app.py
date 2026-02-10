@@ -10,8 +10,8 @@ from email.parser import BytesParser
 from pathlib import Path
 from urllib.parse import urlparse
 
-import psycopg2
-import psycopg2.extras
+import psycopg
+from psycopg.rows import dict_row
 import requests
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -37,7 +37,7 @@ def cloudinary_ready():
 
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 
 def init_db():
@@ -200,7 +200,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/api/public-candidates":
                 with get_conn() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute(
                             "select id, fullName, country, photoUrl from candidates order by id asc"
                         )
@@ -209,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/api/public-settings":
                 with get_conn() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute("select votingEnabled from tournament_settings where id = 1")
                         row = cur.fetchone()
                 return self._send_json(row or {"votingEnabled": 0})
@@ -219,14 +219,14 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/api/candidates":
                 with get_conn() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute("select * from candidates order by id desc")
                         rows = cur.fetchall()
                 return self._send_json(rows)
 
             if path == "/api/votes/summary":
                 with get_conn() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute(
                             """
                             select c.id, c.fullName, count(v.id) as totalVotes
@@ -241,7 +241,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/api/scores/ranking":
                 with get_conn() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute(
                             """
                             select c.id,
@@ -260,7 +260,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/api/tournament-settings":
                 with get_conn() as conn:
-                    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute("select * from tournament_settings where id = 1")
                         row = cur.fetchone()
                 return self._send_json(row or {})
