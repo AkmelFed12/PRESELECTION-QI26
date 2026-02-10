@@ -78,6 +78,17 @@ Garder `onrender.com` (gratuit, rapide et stable).
 
 ---
 
+
+### Dépannage si le build Render échoue
+
+Si vous voyez l'erreur `Could not open requirements file: requirements.txt` :
+
+1. Vérifiez que vous déployez le **dernier commit** contenant `requirements.txt`.
+2. Dans Render → Settings:
+   - Build Command: laissez vide **ou** `test -f requirements.txt && pip install -r requirements.txt || echo "No requirements.txt"`
+   - Start Command: `python3 app.py`
+3. Lancez un **Manual Deploy** (Clear build cache + Deploy latest commit).
+
 ## Important pour un usage professionnel
 
 Ce projet utilise SQLite. Sur des offres gratuites, le stockage local peut être effacé lors des redéploiements/sleep.
