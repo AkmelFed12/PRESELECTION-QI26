@@ -94,6 +94,7 @@ def init_db():
                   totalFinalists integer default 10,
                   votingEnabled integer default 0,
                   registrationLocked integer default 0,
+                  competitionClosed integer default 0,
                   updatedAt timestamp with time zone default now()
                 );
 
@@ -105,6 +106,9 @@ def init_db():
             cur.execute("alter table candidates add column if not exists status text default 'pending'")
             cur.execute(
                 "alter table tournament_settings add column if not exists registrationLocked integer default 0"
+            )
+            cur.execute(
+                "alter table tournament_settings add column if not exists competitionClosed integer default 0"
             )
             cur.execute("create index if not exists idx_votes_candidate on votes(candidateId)")
             cur.execute("create index if not exists idx_scores_candidate on scores(candidateId)")
@@ -217,11 +221,15 @@ class Handler(BaseHTTPRequestHandler):
                 with get_conn() as conn:
                     with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute(
-                            "select votingEnabled, registrationLocked from tournament_settings where id = 1"
+                            """
+                            select votingEnabled, registrationLocked, competitionClosed
+                            from tournament_settings
+                            where id = 1
+                            """
                         )
                         row = cur.fetchone()
                 return self._send_json(
-                    row or {"votingEnabled": 0, "registrationLocked": 0}
+                    row or {"votingEnabled": 0, "registrationLocked": 0, "competitionClosed": 0}
                 )
 
             if not self._is_admin():
@@ -342,9 +350,11 @@ class Handler(BaseHTTPRequestHandler):
 
             with get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("select registrationLocked from tournament_settings where id = 1")
+                    cur.execute(
+                        "select registrationLocked, competitionClosed from tournament_settings where id = 1"
+                    )
                     locked = cur.fetchone()
-                    if locked and int(locked[0]) == 1:
+                    if locked and (int(locked[0]) == 1 or int(locked[1]) == 1):
                         return self._send_json({"message": "Inscriptions fermées."}, 403)
                     cur.execute(
                         "select id from candidates where lower(fullName) = lower(%s) and whatsapp = %s",
@@ -399,6 +409,12 @@ class Handler(BaseHTTPRequestHandler):
 
             with get_conn() as conn:
                 with conn.cursor() as cur:
+                    cur.execute(
+                        "select votingEnabled, competitionClosed from tournament_settings where id = 1"
+                    )
+                    settings = cur.fetchone()
+                    if not settings or int(settings[0]) != 1 or int(settings[1]) == 1:
+                        return self._send_json({"message": "Votes fermés."}, 403)
                     cur.execute("select id from candidates where id = %s", (candidate_id,))
                     if not cur.fetchone():
                         return self._send_json({"message": "Candidat introuvable."}, 404)
@@ -550,6 +566,7 @@ class Handler(BaseHTTPRequestHandler):
             "totalFinalists": p.get("totalFinalists", 10),
             "votingEnabled": p.get("votingEnabled", 0),
             "registrationLocked": p.get("registrationLocked", 0),
+            "competitionClosed": p.get("competitionClosed", 0),
         }
         set_parts = ", ".join([f"{k} = %s" for k in payload.keys()])
         values = list(payload.values())

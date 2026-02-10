@@ -55,20 +55,24 @@ async function loadPublicCandidates() {
 
   if (registerStatusBadge) {
     const locked = Number(settings.registrationLocked || 0) === 1;
-    registerStatusBadge.textContent = locked ? 'Inscriptions fermées' : 'Inscriptions ouvertes';
-    registerStatusBadge.classList.toggle('open', !locked);
+    const closed = Number(settings.competitionClosed || 0) === 1;
+    const statusText = closed ? 'Compétition clôturée' : locked ? 'Inscriptions fermées' : 'Inscriptions ouvertes';
+    registerStatusBadge.textContent = statusText;
+    registerStatusBadge.classList.toggle('open', !locked && !closed);
   }
 
-  if (Number(settings.registrationLocked || 0) === 1 && registrationForm) {
+  if ((Number(settings.registrationLocked || 0) === 1 || Number(settings.competitionClosed || 0) === 1) && registrationForm) {
     registrationForm.querySelectorAll('input, select, textarea, button').forEach((el) => {
       el.disabled = true;
     });
-    registerMsg.textContent = 'Inscriptions temporairement fermées.';
+    registerMsg.textContent = Number(settings.competitionClosed || 0) === 1
+      ? 'Compétition clôturée.'
+      : 'Inscriptions temporairement fermées.';
   }
 
-  if (!settings.votingEnabled) {
+  if (!settings.votingEnabled || Number(settings.competitionClosed || 0) === 1) {
     if (voteStatusBadge) {
-      voteStatusBadge.textContent = 'Votes fermés';
+      voteStatusBadge.textContent = Number(settings.competitionClosed || 0) === 1 ? 'Compétition clôturée' : 'Votes fermés';
       voteStatusBadge.classList.remove('open');
     }
     voteStatus.textContent = 'Les votes seront ouverts prochainement.';

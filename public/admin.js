@@ -16,6 +16,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 const candidateSearch = document.getElementById('candidateSearch');
 const candidateSort = document.getElementById('candidateSort');
 const candidateStatusFilter = document.getElementById('candidateStatusFilter');
+const candidatePhotoFilter = document.getElementById('candidatePhotoFilter');
 const candidatePreview = document.getElementById('candidatePreview');
 const exportCandidates = document.getElementById('exportCandidates');
 const exportVotes = document.getElementById('exportVotes');
@@ -32,6 +33,7 @@ let candidatesCache = [];
 let votesCache = [];
 let rankingCache = [];
 let settingsCache = {};
+let scoresByCandidate = {};
 
 function toBasic(username, password) {
   return 'Basic ' + btoa(`${username}:${password}`);
@@ -70,6 +72,10 @@ async function loadDashboard() {
   votesCache = Array.isArray(votes) ? votes : [];
   rankingCache = Array.isArray(ranking) ? ranking : [];
   settingsCache = settings || {};
+  scoresByCandidate = rankingCache.reduce((acc, row) => {
+    acc[row.id] = row;
+    return acc;
+  }, {});
 
   const candidatesBody = document.querySelector('#candidatesTable tbody');
   candidatesBody.innerHTML = candidates
@@ -105,6 +111,7 @@ function renderCandidatesTable() {
   const query = (candidateSearch?.value || '').toLowerCase().trim();
   const sort = candidateSort?.value || 'id-desc';
   const statusFilter = candidateStatusFilter?.value || '';
+  const photoFilter = candidatePhotoFilter?.checked;
   let list = [...candidatesCache];
   if (query) {
     list = list.filter((c) => {
@@ -114,6 +121,9 @@ function renderCandidatesTable() {
   }
   if (statusFilter) {
     list = list.filter((c) => (c.status || 'pending') === statusFilter);
+  }
+  if (photoFilter) {
+    list = list.filter((c) => !c.photoUrl);
   }
   if (sort === 'name-asc') {
     list.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
@@ -131,6 +141,7 @@ function renderCandidatesTable() {
           <td>${c.fullName}</td>
           <td>${c.country || ''}</td>
           <td>${formatStatus(c.status)}</td>
+          <td>${formatTotalScore(c.id)}</td>
           <td>${c.whatsapp || ''}</td>
           <td>
             <button class="small-btn" data-action="edit" data-id="${c.id}">Modifier</button>
@@ -146,6 +157,13 @@ function formatStatus(value) {
   if (value === 'approved') return 'Validé';
   if (value === 'eliminated') return 'Éliminé';
   return 'En attente';
+}
+
+function formatTotalScore(candidateId) {
+  const row = scoresByCandidate[candidateId];
+  if (!row || !row.averageScore || !row.passages) return '-';
+  const total = Number(row.averageScore) * Number(row.passages);
+  return total.toFixed(2);
 }
 
 function updateDashboard() {
@@ -192,6 +210,7 @@ settingsForm.addEventListener('submit', async (e) => {
   Object.keys(payload).forEach((k) => (payload[k] = Number(payload[k])));
   payload.votingEnabled = settingsForm.elements.votingEnabled.checked ? 1 : 0;
   payload.registrationLocked = settingsForm.elements.registrationLocked.checked ? 1 : 0;
+  payload.competitionClosed = settingsForm.elements.competitionClosed.checked ? 1 : 0;
 
   const res = await authedFetch('/api/tournament-settings', {
     method: 'PUT',
@@ -204,6 +223,7 @@ settingsForm.addEventListener('submit', async (e) => {
 candidateSearch?.addEventListener('input', renderCandidatesTable);
 candidateSort?.addEventListener('change', renderCandidatesTable);
 candidateStatusFilter?.addEventListener('change', renderCandidatesTable);
+candidatePhotoFilter?.addEventListener('change', renderCandidatesTable);
 
 candidateForm.elements.photoFile?.addEventListener('change', (e) => {
   const file = e.target.files?.[0];

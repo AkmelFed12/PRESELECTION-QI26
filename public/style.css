@@ -148,6 +148,13 @@ h1, h2, h3 {
   margin: 8px 0 12px;
   flex-wrap: wrap;
 }
+.inline-check {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+  color: var(--muted);
+}
 .toolbar input, .toolbar select {
   max-width: 320px;
 }
