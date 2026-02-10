@@ -98,6 +98,7 @@ def init_db():
                   registrationLocked integer default 0,
                   competitionClosed integer default 0,
                   announcementText text default '',
+                  scheduleJson text default '[]',
                   updatedAt timestamp with time zone default now()
                 );
 
@@ -115,6 +116,7 @@ def init_db():
                 "alter table tournament_settings add column if not exists competitionClosed integer default 0"
             )
             cur.execute("alter table tournament_settings add column if not exists announcementText text default ''")
+            cur.execute("alter table tournament_settings add column if not exists scheduleJson text default '[]'")
             cur.execute(
                 f"""
                 update candidates
@@ -247,6 +249,7 @@ class Handler(BaseHTTPRequestHandler):
                         "registrationLocked": 0,
                         "competitionClosed": 0,
                         "announcementText": "",
+                        "scheduleJson": "[]",
                     }
                 )
 
@@ -594,6 +597,7 @@ class Handler(BaseHTTPRequestHandler):
             "registrationLocked": p.get("registrationLocked", 0),
             "competitionClosed": p.get("competitionClosed", 0),
             "announcementText": p.get("announcementText", ""),
+            "scheduleJson": p.get("scheduleJson", "[]"),
         }
         set_parts = ", ".join([f"{k} = %s" for k in payload.keys()])
         values = list(payload.values())

@@ -9,6 +9,7 @@ const registerStatusBadge = document.getElementById('registerStatusBadge');
 const announcementCard = document.getElementById('announcementCard');
 const announcementText = document.getElementById('announcementText');
 const qrCode = document.getElementById('qrCode');
+const scheduleList = document.getElementById('scheduleList');
 
 registrationForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -72,6 +73,28 @@ async function loadPublicCandidates() {
     } else {
       announcementCard.classList.add('hidden');
     }
+  }
+
+  if (scheduleList) {
+    let items = [];
+    try {
+      items = JSON.parse(settings.scheduleJson || '[]');
+    } catch {
+      items = [];
+    }
+    scheduleList.innerHTML = Array.isArray(items) && items.length
+      ? items
+          .map(
+            (item) => `
+              <div class="schedule-item">
+                <strong>${item.title || 'Événement'}</strong>
+                <span>${item.date || ''} ${item.time || ''}</span>
+                <span>${item.place || ''}</span>
+              </div>
+            `,
+          )
+          .join('')
+      : '<div class="empty">Calendrier à venir.</div>';
   }
 
   if ((Number(settings.registrationLocked || 0) === 1 || Number(settings.competitionClosed || 0) === 1) && registrationForm) {
