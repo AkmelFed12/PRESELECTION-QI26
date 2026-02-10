@@ -42,11 +42,15 @@ h1, h2, h3 {
 }
 .hero-content {
   flex: 1;
+  position: relative;
+  z-index: 1;
 }
 .hero-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+  z-index: 1;
 }
 .hero::after {
   content: "";
@@ -56,6 +60,7 @@ h1, h2, h3 {
   right: -120px;
   top: -180px;
   background: radial-gradient(circle, rgba(197, 155, 63, 0.4), transparent 70%);
+  pointer-events: none;
 }
 .hero.compact { padding: 24px; }
 .logo {
