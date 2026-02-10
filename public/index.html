@@ -24,6 +24,11 @@
     </header>
 
     <main class="layout">
+      <section class="card notice hidden" id="announcementCard">
+        <h2>Annonce</h2>
+        <p id="announcementText"></p>
+      </section>
+
       <section class="card">
         <h2>Inscription des candidats</h2>
         <p>Remplissez le formulaire pour rejoindre la présélection officielle.</p>
@@ -65,8 +70,31 @@
         <p>Cette section est réservée à l'administrateur.</p>
         <a href="admin.html" class="btn-link">Ouvrir l'espace admin</a>
       </section>
+
+      <section class="card">
+        <h2>Sponsors & Partenaires</h2>
+        <div class="sponsors-grid">
+          <div class="sponsor-card">Partenaire principal</div>
+          <div class="sponsor-card">Sponsor or</div>
+          <div class="sponsor-card">Sponsor argent</div>
+          <div class="sponsor-card">Sponsor bronze</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>FAQ</h2>
+        <p>Retrouvez les réponses aux questions fréquentes.</p>
+        <a href="faq.html" class="btn-link">Ouvrir la FAQ</a>
+      </section>
+
+      <section class="card">
+        <h2>Partager l'inscription</h2>
+        <p>Scannez le QR code pour ouvrir la page d'inscription.</p>
+        <div id="qrCode" class="qr-box"></div>
+      </section>
     </main>
 
     <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   </body>
 </html>

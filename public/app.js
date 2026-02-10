@@ -6,6 +6,9 @@ const voteStatus = document.getElementById('voteStatus');
 const candidatesGrid = document.getElementById('candidatesGrid');
 const voteStatusBadge = document.getElementById('voteStatusBadge');
 const registerStatusBadge = document.getElementById('registerStatusBadge');
+const announcementCard = document.getElementById('announcementCard');
+const announcementText = document.getElementById('announcementText');
+const qrCode = document.getElementById('qrCode');
 
 registrationForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -59,6 +62,16 @@ async function loadPublicCandidates() {
     const statusText = closed ? 'Compétition clôturée' : locked ? 'Inscriptions fermées' : 'Inscriptions ouvertes';
     registerStatusBadge.textContent = statusText;
     registerStatusBadge.classList.toggle('open', !locked && !closed);
+  }
+
+  if (announcementCard && announcementText) {
+    const text = (settings.announcementText || '').trim();
+    if (text) {
+      announcementText.textContent = text;
+      announcementCard.classList.remove('hidden');
+    } else {
+      announcementCard.classList.add('hidden');
+    }
   }
 
   if ((Number(settings.registrationLocked || 0) === 1 || Number(settings.competitionClosed || 0) === 1) && registrationForm) {
@@ -133,5 +146,14 @@ candidatesGrid?.addEventListener('click', async (e) => {
     button.disabled = true;
   }
 });
+
+if (qrCode && window.QRCode) {
+  const url = `${window.location.origin}/`;
+  window.QRCode.toCanvas(url, { width: 180, margin: 1 }, (err, canvas) => {
+    if (err) return;
+    qrCode.innerHTML = '';
+    qrCode.appendChild(canvas);
+  });
+}
 
 loadPublicCandidates();

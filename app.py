@@ -20,6 +20,7 @@ PUBLIC_DIR = BASE_DIR / "public"
 ADMIN_USERNAME = "ASAAQI"
 ADMIN_PASSWORD = "2026ASAA"
 ADMIN_WHATSAPP = "2250150070082"
+CODE_PREFIX = "QI26"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 CLD_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
@@ -49,6 +50,7 @@ def init_db():
                 """
                 create table if not exists candidates (
                   id bigserial primary key,
+                  candidateCode text unique,
                   fullName text not null,
                   age integer,
                   city text,
@@ -95,6 +97,7 @@ def init_db():
                   votingEnabled integer default 0,
                   registrationLocked integer default 0,
                   competitionClosed integer default 0,
+                  announcementText text default '',
                   updatedAt timestamp with time zone default now()
                 );
 
@@ -104,11 +107,20 @@ def init_db():
                 """
             )
             cur.execute("alter table candidates add column if not exists status text default 'pending'")
+            cur.execute("alter table candidates add column if not exists candidateCode text unique")
             cur.execute(
                 "alter table tournament_settings add column if not exists registrationLocked integer default 0"
             )
             cur.execute(
                 "alter table tournament_settings add column if not exists competitionClosed integer default 0"
+            )
+            cur.execute("alter table tournament_settings add column if not exists announcementText text default ''")
+            cur.execute(
+                f"""
+                update candidates
+                set candidateCode = '{CODE_PREFIX}-' || lpad(id::text, 3, '0')
+                where candidateCode is null
+                """
             )
             cur.execute("create index if not exists idx_votes_candidate on votes(candidateId)")
             cur.execute("create index if not exists idx_scores_candidate on scores(candidateId)")
@@ -212,7 +224,7 @@ class Handler(BaseHTTPRequestHandler):
                 with get_conn() as conn:
                     with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute(
-                            "select id, fullName, country, photoUrl from candidates order by id asc"
+                            "select id, candidateCode, fullName, country, photoUrl from candidates order by id asc"
                         )
                         rows = cur.fetchall()
                 return self._send_json(rows)
@@ -222,14 +234,20 @@ class Handler(BaseHTTPRequestHandler):
                     with conn.cursor(row_factory=dict_row) as cur:
                         cur.execute(
                             """
-                            select votingEnabled, registrationLocked, competitionClosed
+                            select votingEnabled, registrationLocked, competitionClosed, announcementText
                             from tournament_settings
                             where id = 1
                             """
                         )
                         row = cur.fetchone()
                 return self._send_json(
-                    row or {"votingEnabled": 0, "registrationLocked": 0, "competitionClosed": 0}
+                    row
+                    or {
+                        "votingEnabled": 0,
+                        "registrationLocked": 0,
+                        "competitionClosed": 0,
+                        "announcementText": "",
+                    }
                 )
 
             if not self._is_admin():
@@ -384,6 +402,10 @@ class Handler(BaseHTTPRequestHandler):
                         ),
                     )
                     candidate_id = cur.fetchone()[0]
+                    cur.execute(
+                        "update candidates set candidateCode = %s where id = %s",
+                        (f"{CODE_PREFIX}-{str(candidate_id).zfill(3)}", candidate_id),
+                    )
                 conn.commit()
 
             msg = (
@@ -508,6 +530,10 @@ class Handler(BaseHTTPRequestHandler):
                         ),
                     )
                     new_id = cur.fetchone()[0]
+                    cur.execute(
+                        "update candidates set candidateCode = %s where id = %s",
+                        (f"{CODE_PREFIX}-{str(new_id).zfill(3)}", new_id),
+                    )
                 conn.commit()
             return self._send_json({"message": "Candidat ajouté.", "candidateId": new_id}, 201)
 
@@ -567,6 +593,7 @@ class Handler(BaseHTTPRequestHandler):
             "votingEnabled": p.get("votingEnabled", 0),
             "registrationLocked": p.get("registrationLocked", 0),
             "competitionClosed": p.get("competitionClosed", 0),
+            "announcementText": p.get("announcementText", ""),
         }
         set_parts = ", ".join([f"{k} = %s" for k in payload.keys()])
         values = list(payload.values())

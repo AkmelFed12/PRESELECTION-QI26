@@ -137,7 +137,7 @@ function renderCandidatesTable() {
       (c) => `
         <tr>
           <td>${c.photoUrl ? `<img src="${c.photoUrl}" alt="${c.fullName}" class="mini-photo" />` : '-'}</td>
-          <td>${c.id}</td>
+          <td>${c.candidateCode || '-'}</td>
           <td>${c.fullName}</td>
           <td>${c.country || ''}</td>
           <td>${formatStatus(c.status)}</td>
@@ -146,6 +146,7 @@ function renderCandidatesTable() {
           <td>
             <button class="small-btn" data-action="edit" data-id="${c.id}">Modifier</button>
             <button class="small-btn danger" data-action="delete" data-id="${c.id}">Supprimer</button>
+            <button class="small-btn" data-action="whatsapp" data-id="${c.id}">WhatsApp</button>
           </td>
         </tr>
       `,
@@ -281,6 +282,15 @@ adminCandidatesTable?.addEventListener('click', async (e) => {
   if (!button) return;
   const candidateId = Number(button.dataset.id);
   const action = button.dataset.action || 'edit';
+  if (action === 'whatsapp') {
+    const candidate = candidatesCache.find((c) => c.id === candidateId);
+    if (!candidate || !candidate.whatsapp) return;
+    const msg = encodeURIComponent(
+      `Assalamou alaykoum ${candidate.fullName}, nous vous contactons pour le Quiz Islamique 2026.`
+    );
+    window.open(`https://wa.me/${candidate.whatsapp}?text=${msg}`, '_blank');
+    return;
+  }
   if (action === 'delete') {
     if (!confirm('Supprimer ce candidat ? Cette action est définitive.')) return;
     const res = await authedFetch(`/api/admin/candidates/${candidateId}`, { method: 'DELETE' });
@@ -298,6 +308,7 @@ adminCandidatesTable?.addEventListener('click', async (e) => {
     }
   });
   candidateForm.elements.candidateId.value = candidate.id;
+  candidateForm.elements.candidateCode.value = candidate.candidateCode || '';
   candidateForm.elements.photoUrl.value = candidate.photoUrl || '';
   candidateForm.elements.status.value = candidate.status || 'pending';
   if (candidatePreview && candidate.photoUrl) {
@@ -356,6 +367,7 @@ function downloadCSV(filename, rows) {
 exportCandidates?.addEventListener('click', () => {
   const rows = candidatesCache.map((c) => ({
     id: c.id,
+    candidateCode: c.candidateCode,
     fullName: c.fullName,
     whatsapp: c.whatsapp,
     status: formatStatus(c.status),

@@ -352,6 +352,32 @@ tbody tr:hover { background: #fffaf0; }
   text-align: center;
   color: var(--muted);
 }
+.sponsors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.sponsor-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: #fffdf7;
+  border: 1px dashed rgba(197, 155, 63, 0.5);
+  text-align: center;
+  font-weight: 600;
+  color: #6b4d0a;
+}
+.qr-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  border-radius: 14px;
+  border: 1px solid rgba(197, 155, 63, 0.3);
+  background: #fffdf7;
+}
+.full {
+  grid-column: 1 / -1;
+}
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }

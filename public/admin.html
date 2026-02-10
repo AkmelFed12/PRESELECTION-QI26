@@ -54,6 +54,10 @@
             <input name="competitionClosed" type="checkbox" />
             <span>Clore la compétition (inscriptions + votes)</span>
           </label>
+          <label class="full">
+            Message d'annonce
+            <textarea name="announcementText" placeholder="Message affiché sur l'accueil"></textarea>
+          </label>
           <button type="submit">Mettre à jour</button>
         </form>
         <p id="settingsMsg"></p>
@@ -106,6 +110,7 @@
         </div>
         <form id="candidateForm" class="grid-form two-col">
           <input name="candidateId" type="number" placeholder="ID candidat (pour modifier)" />
+          <input name="candidateCode" placeholder="Code candidat (auto)" readonly />
           <input name="fullName" placeholder="Nom complet" required />
           <input name="age" type="number" placeholder="Âge" min="10" max="99" />
           <input name="city" placeholder="Ville" />
@@ -136,7 +141,7 @@
         <div class="table-wrap">
           <h3>Liste des candidats</h3>
           <table id="adminCandidatesTable">
-            <thead><tr><th>Photo</th><th>ID</th><th>Nom</th><th>Pays</th><th>Statut</th><th>Score total</th><th>WhatsApp</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Photo</th><th>Code</th><th>Nom</th><th>Pays</th><th>Statut</th><th>Score total</th><th>WhatsApp</th><th>Actions</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
