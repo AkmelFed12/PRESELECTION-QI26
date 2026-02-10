@@ -6,6 +6,10 @@ const voteMsg = document.getElementById('voteMsg');
 registrationForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const formData = Object.fromEntries(new FormData(registrationForm).entries());
+  if (formData.whatsapp && !/^\+?\d{6,20}$/.test(formData.whatsapp.trim())) {
+    registerMsg.textContent = "Numéro WhatsApp invalide. Utilisez uniquement chiffres et signe +.";
+    return;
+  }
 
   const res = await fetch('/api/register', {
     method: 'POST',

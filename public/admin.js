@@ -99,7 +99,7 @@ settingsForm.addEventListener('submit', async (e) => {
 scoreForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = Object.fromEntries(new FormData(scoreForm).entries());
-  ['candidateId', 'tajwidScore', 'memorizationScore', 'presenceScore'].forEach((k) => {
+  ['candidateId', 'themeChosenScore', 'themeImposedScore'].forEach((k) => {
     payload[k] = Number(payload[k] || 0);
   });
 

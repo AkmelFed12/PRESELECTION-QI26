@@ -11,13 +11,13 @@
       <img src="assets/logo-association.svg" alt="Logo Les Serviteurs d'Allah" class="logo" />
       <div>
         <h1>Espace Administrateur</h1>
-        <p class="subtitle">Gestion des inscriptions, votes, notations et parcours de compétition.</p>
+        <p class="subtitle">Gestion des inscriptions, votes, notations et déroulé de la compétition.</p>
       </div>
     </header>
 
     <main class="layout admin-layout">
       <section class="card">
-        <h2>Connexion admin</h2>
+        <h2>Connexion administrateur</h2>
         <form id="loginForm" class="grid-form">
           <input name="username" placeholder="Identifiant" required />
           <input name="password" type="password" placeholder="Mot de passe" required />
@@ -44,13 +44,12 @@
       </section>
 
       <section class="card hidden" id="scorePanel">
-        <h2>Noter un candidat après passage</h2>
+        <h2>Noter un candidat après son passage</h2>
         <form id="scoreForm" class="grid-form two-col">
           <input name="candidateId" type="number" placeholder="ID candidat" required />
           <input name="judgeName" placeholder="Nom du juge" required />
-          <input name="tajwidScore" type="number" step="0.1" placeholder="Tajwid /10" />
-          <input name="memorizationScore" type="number" step="0.1" placeholder="Mémorisation /10" />
-          <input name="presenceScore" type="number" step="0.1" placeholder="Prestance /10" />
+          <input name="themeChosenScore" type="number" step="0.1" placeholder="Thème au choix /15" />
+          <input name="themeImposedScore" type="number" step="0.1" placeholder="Thème imposé /15" />
           <textarea name="notes" placeholder="Notes complémentaires"></textarea>
           <button type="submit">Enregistrer la note</button>
         </form>
@@ -76,7 +75,7 @@
         <div class="table-wrap">
           <h3>Classement des notes</h3>
           <table id="rankingTable">
-            <thead><tr><th>Candidat</th><th>Moyenne</th><th>Passages notés</th></tr></thead>
+            <thead><tr><th>Candidat</th><th>Moyenne /30</th><th>Passages notés</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>

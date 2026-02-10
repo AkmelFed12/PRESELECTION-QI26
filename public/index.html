@@ -19,22 +19,22 @@
     <main class="layout">
       <section class="card">
         <h2>Inscription des candidats</h2>
-        <p>Remplissez le formulaire pour rejoindre la présélection.</p>
+        <p>Remplissez le formulaire pour rejoindre la présélection officielle.</p>
         <form id="registrationForm" class="grid-form">
           <input name="fullName" placeholder="Nom complet" required />
           <input name="age" type="number" placeholder="Âge" min="10" max="99" />
-          <input name="city" placeholder="Ville" />
-          <input name="country" placeholder="Pays" />
+          <input name="city" placeholder="Ville" required />
+          <input name="country" placeholder="Pays" required />
           <input name="email" type="email" placeholder="Email" />
           <input name="phone" placeholder="Téléphone" />
-          <input name="whatsapp" placeholder="WhatsApp (obligatoire)" required />
+          <input name="whatsapp" placeholder="WhatsApp (ex: +2250150070082)" required />
           <select name="quranLevel">
-            <option value="">Niveau en récitation</option>
+            <option value="">Niveau en culture islamique</option>
             <option>Débutant</option>
             <option>Intermédiaire</option>
             <option>Avancé</option>
           </select>
-          <textarea name="motivation" placeholder="Motivation"></textarea>
+          <textarea name="motivation" placeholder="Motivation (facultatif)"></textarea>
           <button type="submit">S'inscrire</button>
         </form>
         <p id="registerMsg"></p>

@@ -12,7 +12,7 @@ DB_PATH = BASE_DIR / "data.sqlite"
 
 ADMIN_USERNAME = "ASAAQI"
 ADMIN_PASSWORD = "2026ASAA"
-ADMIN_WHATSAPP = "22900000000"
+ADMIN_WHATSAPP = "2250150070082"
 
 
 def init_db():
@@ -47,9 +47,8 @@ def init_db():
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           candidateId INTEGER NOT NULL,
           judgeName TEXT NOT NULL,
-          tajwidScore REAL DEFAULT 0,
-          memorizationScore REAL DEFAULT 0,
-          presenceScore REAL DEFAULT 0,
+          themeChosenScore REAL DEFAULT 0,
+          themeImposedScore REAL DEFAULT 0,
           notes TEXT,
           createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY(candidateId) REFERENCES candidates(id)
@@ -72,6 +71,11 @@ def init_db():
         INSERT OR IGNORE INTO tournament_settings (id) VALUES (1);
         """
     )
+    columns = {row[1] for row in cur.execute("PRAGMA table_info(scores)").fetchall()}
+    if "themeChosenScore" not in columns:
+        cur.execute("ALTER TABLE scores ADD COLUMN themeChosenScore REAL DEFAULT 0")
+    if "themeImposedScore" not in columns:
+        cur.execute("ALTER TABLE scores ADD COLUMN themeImposedScore REAL DEFAULT 0")
     conn.commit()
     conn.close()
 
@@ -168,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
                     for r in cur.execute(
                         """
                         SELECT c.id, c.fullName,
-                          ROUND(AVG(s.tajwidScore + s.memorizationScore + s.presenceScore), 2) AS averageScore,
+                          ROUND(AVG(COALESCE(s.themeChosenScore, 0) + COALESCE(s.themeImposedScore, 0)), 2) AS averageScore,
                           COUNT(s.id) AS passages
                         FROM candidates c
                         LEFT JOIN scores s ON c.id = s.candidateId
@@ -262,15 +266,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"message": "Candidat introuvable."}, 404)
             cur.execute(
                 """
-                INSERT INTO scores (candidateId, judgeName, tajwidScore, memorizationScore, presenceScore, notes)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO scores (candidateId, judgeName, themeChosenScore, themeImposedScore, notes)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     candidate_id,
                     judge,
-                    payload.get("tajwidScore", 0),
-                    payload.get("memorizationScore", 0),
-                    payload.get("presenceScore", 0),
+                    payload.get("themeChosenScore", 0),
+                    payload.get("themeImposedScore", 0),
                     payload.get("notes", ""),
                 ),
             )
