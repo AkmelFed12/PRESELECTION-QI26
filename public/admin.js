@@ -33,6 +33,8 @@ const statVotes = document.getElementById('statVotes');
 const statScores = document.getElementById('statScores');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
+const toggleRegistrationLock = document.getElementById('toggleRegistrationLock');
+const registrationLockStatus = document.getElementById('registrationLockStatus');
 
 let authHeader = '';
 let candidatesCache = [];
@@ -206,6 +208,14 @@ function updateDashboard() {
   if (progressText) {
     progressText.textContent = maxCandidates ? `${progress}% (${totalCandidates}/${maxCandidates})` : `${totalCandidates}`;
   }
+
+  if (registrationLockStatus && toggleRegistrationLock) {
+    const locked = Number(settingsCache.registrationLocked || 0) === 1;
+    const closed = Number(settingsCache.competitionClosed || 0) === 1;
+    registrationLockStatus.textContent = closed ? 'Clôturée' : locked ? 'Fermées' : 'Ouvertes';
+    toggleRegistrationLock.textContent = locked ? 'Déverrouiller' : 'Verrouiller';
+    toggleRegistrationLock.disabled = closed;
+  }
 }
 
 loginForm.addEventListener('submit', async (e) => {
@@ -243,6 +253,40 @@ settingsForm.addEventListener('submit', async (e) => {
   });
   const data = await res.json();
   settingsMsg.textContent = data.message || 'Mise à jour effectuée.';
+});
+
+function buildSettingsPayload(overrides = {}) {
+  return {
+    maxCandidates: Number(settingsCache.maxCandidates || 64),
+    directQualified: Number(settingsCache.directQualified || 16),
+    playoffParticipants: Number(settingsCache.playoffParticipants || 32),
+    playoffWinners: Number(settingsCache.playoffWinners || 16),
+    groupsCount: Number(settingsCache.groupsCount || 8),
+    candidatesPerGroup: Number(settingsCache.candidatesPerGroup || 4),
+    finalistsFromWinners: Number(settingsCache.finalistsFromWinners || 8),
+    finalistsFromBestSecond: Number(settingsCache.finalistsFromBestSecond || 2),
+    totalFinalists: Number(settingsCache.totalFinalists || 10),
+    votingEnabled: Number(settingsCache.votingEnabled || 0),
+    registrationLocked: Number(settingsCache.registrationLocked || 0),
+    competitionClosed: Number(settingsCache.competitionClosed || 0),
+    announcementText: settingsCache.announcementText || '',
+    scheduleJson: settingsCache.scheduleJson || '[]',
+    ...overrides,
+  };
+}
+
+toggleRegistrationLock?.addEventListener('click', async () => {
+  const locked = Number(settingsCache.registrationLocked || 0) === 1;
+  const payload = buildSettingsPayload({ registrationLocked: locked ? 0 : 1 });
+  toggleRegistrationLock.disabled = true;
+  const res = await authedFetch('/api/tournament-settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  settingsMsg.textContent = data.message || 'Mise à jour effectuée.';
+  await loadDashboard();
+  toggleRegistrationLock.disabled = false;
 });
 
 candidateSearch?.addEventListener('input', renderCandidatesTable);
