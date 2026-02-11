@@ -7,14 +7,18 @@ contactForm?.addEventListener('submit', async (event) => {
   contactMsg.textContent = '';
 
   const payload = Object.fromEntries(new FormData(contactForm).entries());
-  const res = await fetch('/api/contact', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  contactMsg.textContent = data.message || 'Message envoyé.';
-  if (res.ok) {
-    contactForm.reset();
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    contactMsg.textContent = data.message || 'Message envoyé.';
+    if (res.ok) {
+      contactForm.reset();
+    }
+  } catch (err) {
+    contactMsg.textContent = 'Erreur réseau. Réessayez.';
   }
 });

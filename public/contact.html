@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Contact | Quiz Islamique 2026</title>
+    <meta name="description" content="Contactez l'organisation du Quiz Islamique 2026 via email ou WhatsApp." />
+    <meta property="og:title" content="Contact | Quiz Islamique 2026" />
+    <meta property="og:description" content="Contactez l'organisation du Quiz Islamique 2026." />
+    <link rel="icon" href="assets/logo-association.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -42,9 +46,9 @@
         <h2>Envoyer un message</h2>
         <form id="contactForm" class="grid-form">
           <label for="contactName">Nom complet</label>
-          <input id="contactName" name="fullName" placeholder="Votre nom" required />
+          <input id="contactName" name="fullName" placeholder="Votre nom" autocomplete="name" required />
           <label for="contactEmail">Email</label>
-          <input id="contactEmail" name="email" type="email" placeholder="Votre email" required />
+          <input id="contactEmail" name="email" type="email" placeholder="Votre email" autocomplete="email" required />
           <label for="contactSubject">Objet</label>
           <input id="contactSubject" name="subject" placeholder="Sujet du message" required />
           <label for="contactMessage">Message</label>

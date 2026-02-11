@@ -25,9 +25,16 @@
         <h2>Connexion administrateur</h2>
         <form id="loginForm" class="grid-form">
           <label for="adminUsername">Identifiant</label>
-          <input id="adminUsername" name="username" placeholder="Identifiant" required />
+          <input id="adminUsername" name="username" placeholder="Identifiant" autocomplete="username" required />
           <label for="adminPassword">Mot de passe</label>
-          <input id="adminPassword" name="password" type="password" placeholder="Mot de passe" required />
+          <input
+            id="adminPassword"
+            name="password"
+            type="password"
+            placeholder="Mot de passe"
+            autocomplete="current-password"
+            required
+          />
           <button type="submit">Se connecter</button>
         </form>
         <p id="loginMsg" role="status" aria-live="polite"></p>
@@ -224,6 +231,7 @@
         <div class="table-wrap">
           <h3>Messages de contact</h3>
           <div class="table-actions">
+            <input id="contactSearch" type="search" placeholder="Rechercher (nom, email, objet)" />
             <select id="contactFilter">
               <option value="active">Actifs</option>
               <option value="archived">Archivés</option>
@@ -233,6 +241,16 @@
           </div>
           <table id="contactTable">
             <thead><tr><th>Date</th><th>Nom</th><th>Email</th><th>Objet</th><th>Message</th><th>IP</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="table-wrap">
+          <h3>Journal d'administration</h3>
+          <div class="table-actions">
+            <button class="small-btn" id="exportAudit" type="button">Exporter CSV</button>
+          </div>
+          <table id="auditTable">
+            <thead><tr><th>Date</th><th>Action</th><th>Détails</th><th>IP</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>

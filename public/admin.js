@@ -25,6 +25,9 @@ const exportRankingPdf = document.getElementById('exportRankingPdf');
 const exportContacts = document.getElementById('exportContacts');
 const contactTableBody = document.querySelector('#contactTable tbody');
 const contactFilter = document.getElementById('contactFilter');
+const contactSearch = document.getElementById('contactSearch');
+const auditTableBody = document.querySelector('#auditTable tbody');
+const exportAudit = document.getElementById('exportAudit');
 const statCandidates = document.getElementById('statCandidates');
 const statVotes = document.getElementById('statVotes');
 const statScores = document.getElementById('statScores');
@@ -38,6 +41,7 @@ let rankingCache = [];
 let settingsCache = {};
 let scoresByCandidate = {};
 let contactsCache = [];
+let auditCache = [];
 
 function toBasic(username, password) {
   return 'Basic ' + btoa(`${username}:${password}`);
@@ -56,15 +60,16 @@ async function authedFetch(url, options = {}) {
 }
 
 async function loadDashboard() {
-  const [candidatesRes, votesRes, rankingRes, settingsRes, contactsRes] = await Promise.all([
+  const [candidatesRes, votesRes, rankingRes, settingsRes, contactsRes, auditRes] = await Promise.all([
     authedFetch('/api/candidates'),
     authedFetch('/api/votes/summary'),
     authedFetch('/api/scores/ranking'),
     authedFetch('/api/tournament-settings'),
     authedFetch('/api/contact-messages'),
+    authedFetch('/api/admin-audit'),
   ]);
 
-  if ([candidatesRes, votesRes, rankingRes, settingsRes, contactsRes].some((r) => r.status === 401)) {
+  if ([candidatesRes, votesRes, rankingRes, settingsRes, contactsRes, auditRes].some((r) => r.status === 401)) {
     loginMsg.textContent = 'Session invalide.';
     return;
   }
@@ -74,11 +79,13 @@ async function loadDashboard() {
   const ranking = await rankingRes.json();
   const settings = await settingsRes.json();
   const contacts = await contactsRes.json();
+  const audit = await auditRes.json();
   candidatesCache = Array.isArray(candidates) ? candidates : [];
   votesCache = Array.isArray(votes) ? votes : [];
   rankingCache = Array.isArray(ranking) ? ranking : [];
   settingsCache = settings || {};
   contactsCache = Array.isArray(contacts) ? contacts : [];
+  auditCache = Array.isArray(audit) ? audit : [];
   scoresByCandidate = rankingCache.reduce((acc, row) => {
     acc[row.id] = row;
     return acc;
@@ -101,6 +108,12 @@ async function loadDashboard() {
 
   if (contactTableBody) {
     renderContactsTable();
+  }
+
+  if (auditTableBody) {
+    auditTableBody.innerHTML = auditCache
+      .map((a) => `<tr><td>${a.createdAt}</td><td>${a.action}</td><td>${a.payload || ''}</td><td>${a.ip || ''}</td></tr>`)
+      .join('');
   }
 
   Object.keys(settings).forEach((key) => {
@@ -459,14 +472,30 @@ exportContacts?.addEventListener('click', () => {
   downloadCSV('contacts.csv', rows);
 });
 
+exportAudit?.addEventListener('click', () => {
+  const rows = auditCache.map((a) => ({
+    id: a.id,
+    createdAt: a.createdAt,
+    action: a.action,
+    payload: a.payload,
+    ip: a.ip,
+  }));
+  downloadCSV('audit.csv', rows);
+});
+
 function renderContactsTable() {
   if (!contactTableBody) return;
   const filter = contactFilter?.value || 'active';
+  const query = (contactSearch?.value || '').trim().toLowerCase();
   const list = contactsCache.filter((c) => {
     const isArchived = Number(c.archived || 0) === 1;
     if (filter === 'archived') return isArchived;
     if (filter === 'active') return !isArchived;
     return true;
+  }).filter((c) => {
+    if (!query) return true;
+    const target = `${c.fullName || ''} ${c.email || ''} ${c.subject || ''}`.toLowerCase();
+    return target.includes(query);
   });
   contactTableBody.innerHTML = list
     .map((c) => {
@@ -489,6 +518,7 @@ function renderContactsTable() {
 }
 
 contactFilter?.addEventListener('change', renderContactsTable);
+contactSearch?.addEventListener('input', renderContactsTable);
 
 contactTableBody?.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-contact-action]');

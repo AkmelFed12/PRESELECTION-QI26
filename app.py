@@ -24,6 +24,7 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 ADMIN_WHATSAPP = os.environ.get("ADMIN_WHATSAPP", "2250150070083")
 CODE_PREFIX = "QI26"
 MAX_UPLOAD_BYTES = 3 * 1024 * 1024
+MAX_JSON_BYTES = 1024 * 1024
 RATE_LIMIT_RULES = {
     "register": {"limit": 10, "window": 300},
     "vote": {"limit": 30, "window": 300},
@@ -179,6 +180,10 @@ def init_db():
             )
             cur.execute("create index if not exists idx_votes_candidate on votes(candidateId)")
             cur.execute("create index if not exists idx_scores_candidate on scores(candidateId)")
+            cur.execute("alter table votes add column if not exists ip text")
+            cur.execute("alter table contact_messages add column if not exists archived integer default 0")
+            cur.execute("create index if not exists idx_votes_candidate_ip on votes(candidateId, ip)")
+            cur.execute("create index if not exists idx_contact_archived on contact_messages(archived)")
             try:
                 cur.execute("create unique index if not exists uniq_candidates_whatsapp on candidates(whatsapp)")
             except Exception:
@@ -187,9 +192,18 @@ def init_db():
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _set_security_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if self._is_https():
+            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
     def _send_json(self, payload, status=200):
         data = json.dumps(payload).encode("utf-8")
         self.send_response(status)
+        self._set_security_headers()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
@@ -197,8 +211,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def _get_json(self):
         length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_JSON_BYTES:
+            self._send_json({"message": "Requête trop volumineuse."}, 413)
+            return None
         raw = self.rfile.read(length) if length else b"{}"
-        return json.loads(raw.decode("utf-8") or "{}")
+        try:
+            return json.loads(raw.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return {}
 
     def _is_admin(self):
         if not ADMIN_USERNAME or not ADMIN_PASSWORD:
@@ -262,6 +282,7 @@ class Handler(BaseHTTPRequestHandler):
         }
         content = path.read_bytes()
         self.send_response(200)
+        self._set_security_headers()
         self.send_header("Content-Type", content_types.get(ext, "application/octet-stream"))
         if ext in {".css", ".js", ".svg", ".png", ".jpg", ".jpeg"}:
             self.send_header("Cache-Control", "public, max-age=86400")
@@ -279,12 +300,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def _read_body(self):
         length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_UPLOAD_BYTES:
+            return b""
         return self.rfile.read(length) if length else b""
 
     def _parse_multipart(self):
         content_type = self.headers.get("Content-Type", "")
         if "multipart/form-data" not in content_type:
             return None
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > MAX_UPLOAD_BYTES:
+            return {"__too_large__": True}
         body = self._read_body()
         parser = BytesParser(policy=policy.default)
         msg = parser.parsebytes(
@@ -414,6 +440,20 @@ class Handler(BaseHTTPRequestHandler):
                         rows = cur.fetchall()
                 return self._send_json(rows)
 
+            if path == "/api/admin-audit":
+                with get_conn() as conn:
+                    with conn.cursor(row_factory=dict_row) as cur:
+                        cur.execute(
+                            """
+                            select id, action, payload, ip, createdAt
+                            from admin_audit
+                            order by id desc
+                            limit 500
+                            """
+                        )
+                        rows = cur.fetchall()
+                return self._send_json(rows)
+
             return self._send_json({"message": "Not found"}, 404)
 
         return self._serve_file(path)
@@ -429,6 +469,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"message": "Cloudinary non configuré."}, 500)
 
             form = self._parse_multipart()
+            if form and form.get("__too_large__"):
+                return self._send_json({"message": "Fichier trop volumineux (max 3 Mo)."}, 413)
             if not form or "photo" not in form:
                 return self._send_json({"message": "Fichier photo requis."}, 400)
             photo_item = form["photo"]
@@ -476,6 +518,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"photoUrl": upload_json.get("secure_url")})
 
         payload = self._get_json()
+        if payload is None:
+            return
 
         if path == "/api/contact":
             if not self._require_db():
@@ -607,8 +651,17 @@ class Handler(BaseHTTPRequestHandler):
                     if not cur.fetchone():
                         return self._send_json({"message": "Candidat introuvable."}, 404)
                     cur.execute(
-                        "insert into votes (candidateId, voterName, voterContact) values (%s, %s, %s)",
-                        (candidate_id, payload.get("voterName"), payload.get("voterContact")),
+                        """
+                        select id from votes
+                        where candidateId = %s and ip = %s and createdAt > now() - interval '24 hours'
+                        """,
+                        (candidate_id, get_client_ip(self)),
+                    )
+                    if cur.fetchone():
+                        return self._send_json({"message": "Vote déjà enregistré pour ce candidat."}, 429)
+                    cur.execute(
+                        "insert into votes (candidateId, voterName, voterContact, ip) values (%s, %s, %s, %s)",
+                        (candidate_id, payload.get("voterName"), payload.get("voterContact"), get_client_ip(self)),
                     )
                 conn.commit()
             return self._send_json({"message": "Vote enregistré."}, 201)
@@ -800,6 +853,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         p = self._get_json()
+        if p is None:
+            return
         payload = {
             "maxCandidates": p.get("maxCandidates", 64),
             "directQualified": p.get("directQualified", 16),
@@ -926,9 +981,14 @@ def send_contact_email(full_name, email, subject, message):
     ]
     msg = "\r\n".join(headers) + "\r\n\r\n" + body
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+        if SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15)
+        else:
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
+        with server:
             server.ehlo()
-            server.starttls()
+            if SMTP_PORT != 465:
+                server.starttls()
             if SMTP_USER and SMTP_PASSWORD:
                 server.login(SMTP_USER, SMTP_PASSWORD)
             server.sendmail(SMTP_FROM, [SMTP_TO], msg.encode("utf-8"))

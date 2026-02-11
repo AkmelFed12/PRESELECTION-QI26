@@ -12,6 +12,7 @@
   --shadow: 0 18px 40px rgba(12, 21, 36, 0.12);
 }
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
   margin: 0;
   font-family: "Source Sans 3", "Segoe UI", sans-serif;
@@ -242,6 +243,10 @@ h1, h2, h3 {
 .grid-form { display: grid; gap: 12px; }
 .grid-form.two-col { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 label { font-size: 0.92rem; color: var(--muted); font-weight: 600; }
+label.required::after {
+  content: " *";
+  color: #9c2b2b;
+}
 input, select, textarea, button {
   width: 100%;
   border-radius: 10px;
@@ -423,6 +428,37 @@ tbody tr:hover { background: #fffaf0; }
 .schedule-item span {
   color: var(--muted);
 }
+.steps-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.step-card {
+  padding: 14px;
+  border-radius: 12px;
+  background: #fffdf7;
+  border: 1px solid rgba(197, 155, 63, 0.18);
+}
+.step-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+.stats-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.stat-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(11, 111, 79, 0.25);
+  display: grid;
+  gap: 8px;
+}
+.stat-card strong {
+  font-size: 1.6rem;
+}
 .key-list {
   margin: 0;
   padding-left: 18px;
@@ -470,6 +506,13 @@ tbody tr:hover { background: #fffaf0; }
 @keyframes rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }
 @media (max-width: 720px) {
   .hero { flex-direction: column; align-items: flex-start; }

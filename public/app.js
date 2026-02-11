@@ -14,34 +14,46 @@ const publicCandidatesGrid = document.getElementById('publicCandidatesGrid');
 const candidateSearchPublic = document.getElementById('candidateSearchPublic');
 const candidateCountryFilter = document.getElementById('candidateCountryFilter');
 const candidateCityFilter = document.getElementById('candidateCityFilter');
+const publicStatCandidates = document.getElementById('publicStatCandidates');
+const publicStatCountries = document.getElementById('publicStatCountries');
+const publicStatCities = document.getElementById('publicStatCities');
 
 let cachedCandidates = [];
 
 registrationForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const submitBtn = registrationForm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
   const formData = Object.fromEntries(new FormData(registrationForm).entries());
   if (formData.whatsapp && !/^\+?\d{6,20}$/.test(formData.whatsapp.trim())) {
     registerMsg.textContent = "Numéro WhatsApp invalide. Utilisez uniquement chiffres et signe +.";
+    if (submitBtn) submitBtn.disabled = false;
     return;
   }
 
-  const res = await fetch('/api/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(formData),
-  });
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
 
-  const data = await res.json();
-  if (!res.ok) {
-    registerMsg.textContent = data.message || 'Erreur lors de l’inscription.';
-    return;
+    const data = await res.json();
+    if (!res.ok) {
+      registerMsg.textContent = data.message || 'Erreur lors de l’inscription.';
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+
+    registerMsg.textContent = `${data.message} Redirection WhatsApp en cours...`;
+    registrationForm.reset();
+    setTimeout(() => {
+      window.location.href = data.whatsappRedirect;
+    }, 1000);
+  } catch (err) {
+    registerMsg.textContent = 'Erreur réseau. Réessayez.';
+    if (submitBtn) submitBtn.disabled = false;
   }
-
-  registerMsg.textContent = `${data.message} Redirection WhatsApp en cours...`;
-  registrationForm.reset();
-  setTimeout(() => {
-    window.location.href = data.whatsappRedirect;
-  }, 1000);
 });
 
 function getInitials(name = '') {
@@ -113,6 +125,7 @@ async function loadPublicCandidates() {
   }
 
   cachedCandidates = Array.isArray(candidates) ? candidates : [];
+  updatePublicStats();
   renderPublicCandidatesList();
 
   if (!settings.votingEnabled || Number(settings.competitionClosed || 0) === 1) {
@@ -139,7 +152,7 @@ async function loadPublicCandidates() {
     .map((c) => {
       const initials = getInitials(c.fullName);
       const photo = c.photoUrl
-        ? `<img src="${c.photoUrl}" alt="${c.fullName}" />`
+        ? `<img src="${c.photoUrl}" alt="${c.fullName}" loading="lazy" decoding="async" />`
         : `<div class="placeholder">${initials || 'QI'}</div>`;
       return `
         <article class="candidate-card">
@@ -176,7 +189,7 @@ function renderPublicCandidatesList() {
         .map((c) => {
           const initials = getInitials(c.fullName);
           const photo = c.photoUrl
-            ? `<img src="${c.photoUrl}" alt="${c.fullName}" />`
+            ? `<img src="${c.photoUrl}" alt="${c.fullName}" loading="lazy" decoding="async" />`
             : `<div class="placeholder">${initials || 'QI'}</div>`;
           return `
             <article class="candidate-card">
@@ -223,28 +236,48 @@ function hydratePublicFilters() {
   candidateCityFilter.value = currentCity;
 }
 
+function updatePublicStats() {
+  if (!publicStatCandidates) return;
+  const countries = new Set();
+  const cities = new Set();
+  cachedCandidates.forEach((c) => {
+    if (c.country) countries.add(c.country.trim().toLowerCase());
+    if (c.city) cities.add(c.city.trim().toLowerCase());
+  });
+  publicStatCandidates.textContent = cachedCandidates.length;
+  if (publicStatCountries) publicStatCountries.textContent = countries.size;
+  if (publicStatCities) publicStatCities.textContent = cities.size;
+}
+
 candidatesGrid?.addEventListener('click', async (e) => {
   const button = e.target.closest('.vote-btn');
   if (!button) return;
+  button.disabled = true;
   const candidateId = Number(button.dataset.id);
   const voterInfo = Object.fromEntries(new FormData(voterInfoForm).entries());
 
-  const res = await fetch('/api/votes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      candidateId,
-      voterName: voterInfo.voterName,
-      voterContact: voterInfo.voterContact,
-    }),
-  });
-  const data = await res.json();
-  voteMsg.textContent = data.message || 'Vote enregistré.';
-  if (res.ok) {
-    voterInfoForm.reset();
-    button.textContent = 'Merci !';
-    button.disabled = true;
+  try {
+    const res = await fetch('/api/votes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidateId,
+        voterName: voterInfo.voterName,
+        voterContact: voterInfo.voterContact,
+      }),
+    });
+    const data = await res.json();
+    voteMsg.textContent = data.message || 'Vote enregistré.';
+    if (res.ok) {
+      voterInfoForm.reset();
+      button.textContent = 'Merci !';
+      button.disabled = true;
+      return;
+    }
+  } catch (err) {
+    voteMsg.textContent = 'Erreur réseau. Réessayez.';
   }
+  button.disabled = false;
 });
 
 candidateSearchPublic?.addEventListener('input', renderPublicCandidatesList);

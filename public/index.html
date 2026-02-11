@@ -31,6 +31,8 @@
         </div>
       </div>
       <div class="hero-actions">
+        <a href="#registrationSection" class="btn-link">S'inscrire</a>
+        <a href="#publicListSection" class="btn-link outline">Voir les candidats</a>
         <a href="admin.html" class="btn-link outline">Espace administrateur</a>
       </div>
     </header>
@@ -46,32 +48,87 @@
         </ul>
       </section>
 
+      <section class="card">
+        <h2>Les étapes</h2>
+        <div class="steps-grid">
+          <div class="step-card">
+            <strong>1. Inscription</strong>
+            <p>Remplissez le formulaire et recevez votre code candidat.</p>
+          </div>
+          <div class="step-card">
+            <strong>2. Calendrier</strong>
+            <p>Consultez les annonces et choisissez votre créneau.</p>
+          </div>
+          <div class="step-card">
+            <strong>3. Passage</strong>
+            <p>Deux thèmes évalués pour un total de 30 points.</p>
+          </div>
+          <div class="step-card">
+            <strong>4. Résultats</strong>
+            <p>Classement et qualification selon le format officiel.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card accent-emerald">
+        <h2>Chiffres clés</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span>Candidats inscrits</span>
+            <strong id="publicStatCandidates">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Pays représentés</span>
+            <strong id="publicStatCountries">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Villes représentées</span>
+            <strong id="publicStatCities">0</strong>
+          </div>
+        </div>
+      </section>
+
       <section class="card notice hidden" id="announcementCard">
         <h2>Annonce</h2>
         <p id="announcementText"></p>
       </section>
 
-      <section class="card">
+      <section class="card" id="registrationSection">
         <h2>Inscription des candidats</h2>
         <p>Remplissez le formulaire pour rejoindre la présélection officielle.</p>
         <p class="muted-note" id="registrationHelp">
           Les champs marqués d'une étoile sont obligatoires. Vos informations restent confidentielles.
         </p>
         <form id="registrationForm" class="grid-form">
-          <label for="fullName">Nom complet *</label>
-          <input id="fullName" name="fullName" placeholder="Nom complet" required aria-required="true" aria-describedby="registrationHelp" />
+          <label for="fullName" class="required">Nom complet</label>
+          <input
+            id="fullName"
+            name="fullName"
+            placeholder="Nom complet"
+            autocomplete="name"
+            required
+            aria-required="true"
+            aria-describedby="registrationHelp"
+          />
           <label for="age">Âge</label>
-          <input id="age" name="age" type="number" placeholder="Âge" min="10" max="99" />
-          <label for="city">Ville *</label>
-          <input id="city" name="city" placeholder="Ville" required aria-required="true" />
-          <label for="country">Pays *</label>
-          <input id="country" name="country" placeholder="Pays" required aria-required="true" />
+          <input id="age" name="age" type="number" placeholder="Âge" min="10" max="99" autocomplete="age" />
+          <label for="city" class="required">Ville</label>
+          <input id="city" name="city" placeholder="Ville" autocomplete="address-level2" required aria-required="true" />
+          <label for="country" class="required">Pays</label>
+          <input id="country" name="country" placeholder="Pays" autocomplete="country-name" required aria-required="true" />
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="Email" />
+          <input id="email" name="email" type="email" placeholder="Email" autocomplete="email" />
           <label for="phone">Téléphone</label>
-          <input id="phone" name="phone" placeholder="Téléphone" />
-          <label for="whatsapp">WhatsApp *</label>
-          <input id="whatsapp" name="whatsapp" placeholder="Ex: +2250150070083" required aria-required="true" />
+          <input id="phone" name="phone" placeholder="Téléphone" autocomplete="tel" />
+          <label for="whatsapp" class="required">WhatsApp</label>
+          <input
+            id="whatsapp"
+            name="whatsapp"
+            placeholder="Ex: +2250150070083"
+            autocomplete="tel"
+            required
+            aria-required="true"
+          />
           <label for="quranLevel">Niveau en culture islamique</label>
           <select id="quranLevel" name="quranLevel">
             <option value="">Sélectionner un niveau</option>
@@ -100,7 +157,7 @@
         <p id="voteMsg" role="status" aria-live="polite"></p>
       </section>
 
-      <section class="card">
+      <section class="card" id="publicListSection">
         <h2>Candidats inscrits</h2>
         <p>Consultez la liste publique des candidats et filtrez par pays ou ville.</p>
         <div class="toolbar">

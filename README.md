@@ -12,6 +12,8 @@ Application web professionnelle pour l'Association des Serviteurs d'Allah Azawaj
 - Vote public pour les candidats.
 - Notation admin après chaque passage et classement automatique.
 - Paramétrage complet du format de compétition (64 candidats max, barrages, groupes, finale) avec modification manuelle.
+- Formulaire de contact public avec journal de suivi côté admin.
+- Journal d'audit admin (actions principales).
 
 ## Lancer le projet
 
