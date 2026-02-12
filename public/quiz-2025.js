@@ -4,6 +4,7 @@ const slideVideo = document.getElementById('slideVideo');
 const prevSlideBtn = document.getElementById('prevSlide');
 const nextSlideBtn = document.getElementById('nextSlide');
 const toggleAutoBtn = document.getElementById('toggleAuto');
+const downloadMediaLink = document.getElementById('downloadMedia');
 const slideCounter = document.getElementById('slideCounter');
 
 const IMAGE_DURATION_MS = 5000;
@@ -31,11 +32,23 @@ function updateCounter() {
   slideCounter.textContent = `${mediaItems.length ? currentIndex + 1 : 0} / ${mediaItems.length}`;
 }
 
+function updateDownloadLink(item) {
+  if (!downloadMediaLink || !item || !item.url) return;
+  downloadMediaLink.classList.remove('hidden');
+  downloadMediaLink.href = item.url;
+  downloadMediaLink.download = item.name || (item.type === 'video' ? 'video-quiz-2025' : 'image-quiz-2025');
+  downloadMediaLink.textContent = item.type === 'video' ? 'Télécharger la vidéo' : 'Télécharger l’image';
+}
+
 function renderSlide() {
   if (!mediaItems.length) {
     galleryStatus.textContent = 'Aucun média disponible pour le moment.';
     slideImage.classList.add('hidden');
     slideVideo.classList.add('hidden');
+    if (downloadMediaLink) {
+      downloadMediaLink.classList.add('hidden');
+      downloadMediaLink.removeAttribute('href');
+    }
     updateCounter();
     stopAutoPlay();
     return;
@@ -43,6 +56,7 @@ function renderSlide() {
 
   const item = mediaItems[currentIndex];
   galleryStatus.textContent = item.name || 'Média';
+  updateDownloadLink(item);
 
   if (item.type === 'video') {
     slideImage.classList.add('hidden');
