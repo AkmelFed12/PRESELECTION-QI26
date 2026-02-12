@@ -293,7 +293,13 @@ loginForm.addEventListener('submit', async (e) => {
 settingsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = Object.fromEntries(new FormData(settingsForm).entries());
-  Object.keys(payload).forEach((k) => (payload[k] = Number(payload[k])));
+  // Convertir les champs numériques en nombres, sauf les textes
+  const stringFields = ['announcementText', 'scheduleJson'];
+  Object.keys(payload).forEach((k) => {
+    if (!stringFields.includes(k)) {
+      payload[k] = Number(payload[k]);
+    }
+  });
   payload.votingEnabled = settingsForm.elements.votingEnabled.checked ? 1 : 0;
   payload.registrationLocked = settingsForm.elements.registrationLocked.checked ? 1 : 0;
   payload.competitionClosed = settingsForm.elements.competitionClosed.checked ? 1 : 0;
