@@ -384,9 +384,12 @@ class Handler(BaseHTTPRequestHandler):
                                    c.city,
                                    c.country,
                                    c.photoUrl,
-                                   count(v.id) as totalVotes
+                                   count(v.id) as totalVotes,
+                                   avg(s.themeChosenScore + s.themeImposedScore) as averageScore,
+                                   count(s.id) as passages
                             from candidates c
                             left join votes v on c.id = v.candidateId
+                            left join scores s on c.id = s.candidateId
                             group by c.id, c.fullName, c.city, c.country, c.photoUrl
                             order by totalVotes desc, c.fullName asc
                             """
@@ -406,6 +409,24 @@ class Handler(BaseHTTPRequestHandler):
                         },
                     }
                 )
+
+            if path == "/api/public-results/qualified":
+                # Système simple de qualification : top 10 candidats par votes
+                with get_conn() as conn:
+                    with conn.cursor(row_factory=dict_row) as cur:
+                        cur.execute(
+                            """
+                            select c.id, count(v.id) as totalVotes
+                            from candidates c
+                            left join votes v on c.id = v.candidateId
+                            group by c.id
+                            order by totalVotes desc
+                            limit 10
+                            """
+                        )
+                        qualified = cur.fetchall()
+                qualified_ids = [int(r.get("id", 0)) for r in qualified]
+                return self._send_json({"qualifiedIds": qualified_ids})
 
             if not self._require_admin():
                 return

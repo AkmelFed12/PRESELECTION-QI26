@@ -318,6 +318,15 @@ button:hover, .btn-link:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.candidate-card.qualified {
+  border-color: #4caf50;
+  background: #f1f8f5;
+}
+.candidate-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(12, 21, 36, 0.15);
 }
 .candidate-card .photo {
   width: 100%;
@@ -346,6 +355,36 @@ button:hover, .btn-link:hover {
 .candidate-info p {
   margin: 4px 0 0;
   color: var(--muted);
+}
+.candidate-info .score {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: #c59b3f;
+  font-weight: 600;
+}
+.vote-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+.vote-stats strong {
+  background: linear-gradient(120deg, #c59b3f, #a8781a);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  flex: 1;
+  text-align: center;
+}
+.badge {
+  display: inline-block;
+  background: #4caf50;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 .vote-btn {
   background: linear-gradient(120deg, #c59b3f, #a8781a);

@@ -51,6 +51,11 @@
         <div class="toolbar">
           <label class="sr-only" for="resultsSearch">Recherche</label>
           <input id="resultsSearch" type="search" placeholder="Rechercher un candidat" />
+          <select id="resultFilter">
+            <option value="all">Tous les candidats</option>
+            <option value="qualified">Qualifiés (finalistes)</option>
+            <option value="unqualified">Non qualifiés</option>
+          </select>
         </div>
         <div id="resultsGrid" class="candidates-grid"></div>
       </section>
