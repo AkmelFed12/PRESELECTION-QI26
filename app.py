@@ -1,4 +1,5 @@
 import base64
+import datetime
 import hmac
 import hashlib
 import json
@@ -91,6 +92,14 @@ SMTP_TO = os.environ.get("SMTP_TO", "")
 
 def db_ready():
     return bool(DATABASE_URL)
+
+
+def json_default(value):
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    return str(value)
 
 
 def cloudinary_ready():
@@ -262,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 payload = {"data": payload}
             
-            data = json.dumps(payload).encode("utf-8")
+            data = json.dumps(payload, default=json_default).encode("utf-8")
             self.send_response(status)
             self._set_security_headers()
             self.send_header("Content-Type", "application/json; charset=utf-8")
