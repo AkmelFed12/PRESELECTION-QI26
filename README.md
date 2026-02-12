@@ -67,7 +67,7 @@ python3 app.py
 # Base de données (OBLIGATOIRE)
 DATABASE_URL=postgresql://user:password@host/dbname
 
-# Admin (défauts: admin / qi26admin2026)
+# Admin (OBLIGATOIRE)
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=votre_mot_de_passe_sécurisé
 ADMIN_WHATSAPP=2250150070083  # optionnel
@@ -131,14 +131,14 @@ GET  /api/admin-audit            - Historique audit
 
 ### Admin Login
 - URL: `/admin.html`
-- Default: `admin` / `qi26admin2026`
+- Credentials: via variables d'environnement (`ADMIN_USERNAME`, `ADMIN_PASSWORD`)
 - Méthode: Basic Auth (Base64 encoded)
-- ⚠️ **À CHANGER EN PRODUCTION** via le formulaire "Sécurité"
+- ⚠️ Le serveur refuse l'accès admin si aucun mot de passe n'est défini
 
 ### Gestion Mot de Passe
 - Panel "Sécurité" → "Changer mot de passe"
 - Minimum 8 caractères
-- SHA256 hashing côté serveur
+- PBKDF2-HMAC-SHA256 avec sel côté serveur
 
 ## 📊 Pages Publiques
 
@@ -257,7 +257,7 @@ docker run -p 3000:3000 -e DATABASE_URL=... quiz-islamique
 ```bash
 # 1. Ouvrir http://localhost:3000
 # 2. Admin: http://localhost:3000/admin.html
-# 3. Login: admin / qi26admin2026
+# 3. Login: identifiants définis via ADMIN_USERNAME / ADMIN_PASSWORD
 # 4. Tester inscription, vote, notation
 ```
 
@@ -270,7 +270,7 @@ curl http://localhost:3000/api/health
 curl http://localhost:3000/api/public-candidates
 
 # Admin (avec auth)
-curl -H "Authorization: Basic $(echo -n 'admin:qi26admin2026' | base64)" \
+curl -H "Authorization: Basic $(echo -n \"$ADMIN_USERNAME:$ADMIN_PASSWORD\" | base64)" \
   http://localhost:3000/api/candidates
 ```
 
@@ -316,4 +316,3 @@ Render Dashboard → Logs
 **Dernière mise à jour**: Février 2026  
 **Statut**: Production ✓  
 **Support**: GitHub Issues ou Email  
-

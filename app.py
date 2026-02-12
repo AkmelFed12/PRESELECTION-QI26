@@ -1,8 +1,10 @@
 import base64
+import hmac
 import hashlib
 import json
 import os
 import re
+import secrets
 import smtplib
 import time
 import uuid
@@ -32,7 +34,7 @@ class APIError(Exception):
 
 # Admin credentials - utiliser des variables d'environnement en production
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "qi26admin2026")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 ADMIN_WHATSAPP = os.environ.get("ADMIN_WHATSAPP", "2250150070083")
 CODE_PREFIX = "QI26"
 MAX_UPLOAD_BYTES = 3 * 1024 * 1024
@@ -168,6 +170,12 @@ def init_db():
                   createdAt timestamp with time zone default now()
                 );
 
+                create table if not exists admin_config (
+                  key text primary key,
+                  value text,
+                  updatedAt timestamp with time zone default now()
+                );
+
                 insert into tournament_settings (id)
                 values (1)
                 on conflict (id) do nothing;
@@ -200,6 +208,15 @@ def init_db():
                 cur.execute("create unique index if not exists uniq_candidates_whatsapp on candidates(whatsapp)")
             except Exception:
                 pass
+            if ADMIN_PASSWORD:
+                cur.execute(
+                    """
+                    insert into admin_config (key, value)
+                    values ('admin_password_hash', %s)
+                    on conflict (key) do nothing
+                    """,
+                    (hash_password(ADMIN_PASSWORD),),
+                )
         conn.commit()
 
 
@@ -211,12 +228,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-XSS-Protection", "1; mode=block")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        )
+
         # CORS - Accepter les requêtes du même domaine et locales
         origin = self.headers.get("Origin", "")
         if not origin or origin.endswith(("localhost", ".local", "127.0.0.1")):
             self.send_header("Access-Control-Allow-Origin", origin or "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.send_header("Access-Control-Max-Age", "3600")
         
@@ -260,14 +281,38 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             return {}
 
+    def _get_admin_password_hash(self):
+        if db_ready():
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("select value from admin_config where key = 'admin_password_hash'")
+                        row = cur.fetchone()
+                        if row and row[0]:
+                            return str(row[0])
+            except Exception:
+                pass
+        if ADMIN_PASSWORD:
+            return hash_password(ADMIN_PASSWORD)
+        return ""
+
     def _is_admin(self):
-        if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+        if not ADMIN_USERNAME:
             return False
         auth = self.headers.get("Authorization", "")
         if not auth.startswith("Basic "):
             return False
-        expected = base64.b64encode(f"{ADMIN_USERNAME}:{ADMIN_PASSWORD}".encode()).decode()
-        return auth == f"Basic {expected}"
+        try:
+            decoded = base64.b64decode(auth[6:]).decode("utf-8")
+            username, password = decoded.split(":", 1)
+        except Exception:
+            return False
+        if not hmac.compare_digest(username, ADMIN_USERNAME):
+            return False
+        admin_hash = self._get_admin_password_hash()
+        if not admin_hash:
+            return False
+        return check_password(password, admin_hash)
 
     def _is_https(self):
         forwarded = self.headers.get("X-Forwarded-Proto", "")
@@ -394,187 +439,215 @@ class Handler(BaseHTTPRequestHandler):
                 return self._serve_file("index.html")
 
             if path.startswith("/api/"):
-            if not self._require_db():
-                return
+                if not self._require_db():
+                    return
 
-            if path == "/api/health":
-                return self._send_json({"status": "ok"})
+                if path == "/api/health":
+                    return self._send_json({"status": "ok"})
 
-            if path == "/api/public-candidates":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            "select id, candidateCode, fullName, city, country, photoUrl from candidates order by id asc"
-                        )
-                        rows = cur.fetchall()
-                return self._send_json(rows)
+                if path == "/api/public-candidates":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select c.id,
+                                       c.candidateCode,
+                                       c.fullName,
+                                       c.city,
+                                       c.country,
+                                       c.photoUrl,
+                                       c.quranLevel,
+                                       c.motivation,
+                                       c.createdAt,
+                                       coalesce(v.totalVotes, 0) as totalVotes
+                                from candidates c
+                                left join (
+                                  select candidateId, count(*) as totalVotes
+                                  from votes
+                                  group by candidateId
+                                ) v on c.id = v.candidateId
+                                order by c.id asc
+                                """
+                            )
+                            rows = cur.fetchall()
+                    return self._send_json(rows)
 
-            if path == "/api/public-settings":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select votingEnabled, registrationLocked, competitionClosed, announcementText
-                            from tournament_settings
-                            where id = 1
-                            """
-                        )
-                        row = cur.fetchone()
-                return self._send_json(
-                    row
-                    or {
-                        "votingEnabled": 0,
-                        "registrationLocked": 0,
-                        "competitionClosed": 0,
-                        "announcementText": "",
-                        "scheduleJson": "[]",
-                    }
-                )
+                if path == "/api/public-settings":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select votingEnabled, registrationLocked, competitionClosed, announcementText, scheduleJson
+                                from tournament_settings
+                                where id = 1
+                                """
+                            )
+                            row = cur.fetchone()
+                    return self._send_json(
+                        row
+                        or {
+                            "votingEnabled": 0,
+                            "registrationLocked": 0,
+                            "competitionClosed": 0,
+                            "announcementText": "",
+                            "scheduleJson": "[]",
+                        }
+                    )
 
-            if path == "/api/public-results":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select c.id,
-                                   c.fullName,
-                                   c.city,
-                                   c.country,
-                                   c.photoUrl,
-                                   count(v.id) as totalVotes,
-                                   avg(s.themeChosenScore + s.themeImposedScore) as averageScore,
-                                   count(s.id) as passages
-                            from candidates c
-                            left join votes v on c.id = v.candidateId
-                            left join scores s on c.id = s.candidateId
-                            group by c.id, c.fullName, c.city, c.country, c.photoUrl
-                            order by totalVotes desc, c.fullName asc
-                            """
-                        )
-                        rows = cur.fetchall()
-                countries = {str(r.get("country", "")).strip().lower() for r in rows if r.get("country")}
-                cities = {str(r.get("city", "")).strip().lower() for r in rows if r.get("city")}
-                total_votes = sum(int(r.get("totalVotes") or 0) for r in rows)
-                return self._send_json(
-                    {
-                        "candidates": rows,
-                        "stats": {
-                            "totalCandidates": len(rows),
-                            "totalVotes": total_votes,
-                            "countries": len(countries),
-                            "cities": len(cities),
-                        },
-                    }
-                )
+                if path == "/api/public-results":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select c.id,
+                                       c.fullName,
+                                       c.city,
+                                       c.country,
+                                       c.photoUrl,
+                                       coalesce(v.totalVotes, 0) as totalVotes,
+                                       s.averageScore,
+                                       coalesce(s.passages, 0) as passages
+                                from candidates c
+                                left join (
+                                  select candidateId, count(*) as totalVotes
+                                  from votes
+                                  group by candidateId
+                                ) v on c.id = v.candidateId
+                                left join (
+                                  select candidateId,
+                                         round(avg(themeChosenScore + themeImposedScore), 2) as averageScore,
+                                         count(*) as passages
+                                  from scores
+                                  group by candidateId
+                                ) s on c.id = s.candidateId
+                                order by coalesce(v.totalVotes, 0) desc, c.fullName asc
+                                """
+                            )
+                            rows = cur.fetchall()
+                    countries = {str(r.get("country", "")).strip().lower() for r in rows if r.get("country")}
+                    cities = {str(r.get("city", "")).strip().lower() for r in rows if r.get("city")}
+                    total_votes = sum(int(r.get("totalVotes") or 0) for r in rows)
+                    return self._send_json(
+                        {
+                            "candidates": rows,
+                            "stats": {
+                                "totalCandidates": len(rows),
+                                "totalVotes": total_votes,
+                                "countries": len(countries),
+                                "cities": len(cities),
+                            },
+                        }
+                    )
 
-            if path == "/api/public-results/qualified":
-                # Système simple de qualification : top 10 candidats par votes
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select c.id, count(v.id) as totalVotes
-                            from candidates c
-                            left join votes v on c.id = v.candidateId
-                            group by c.id
-                            order by totalVotes desc
-                            limit 10
-                            """
-                        )
-                        qualified = cur.fetchall()
-                qualified_ids = [int(r.get("id", 0)) for r in qualified]
-                return self._send_json({"qualifiedIds": qualified_ids})
+                if path == "/api/public-results/qualified":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select c.id, coalesce(v.totalVotes, 0) as totalVotes
+                                from candidates c
+                                left join (
+                                  select candidateId, count(*) as totalVotes
+                                  from votes
+                                  group by candidateId
+                                ) v on c.id = v.candidateId
+                                order by coalesce(v.totalVotes, 0) desc
+                                limit 10
+                                """
+                            )
+                            qualified = cur.fetchall()
+                    qualified_ids = [int(r.get("id", 0)) for r in qualified]
+                    return self._send_json({"qualifiedIds": qualified_ids})
 
-            if not self._require_admin():
-                return
+                if not self._require_admin():
+                    return
 
-            if path == "/api/candidates":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute("select * from candidates order by id desc")
-                        rows = cur.fetchall()
-                return self._send_json(rows)
+                if path == "/api/candidates":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute("select * from candidates order by id desc")
+                            rows = cur.fetchall()
+                    return self._send_json(rows)
 
-            if path == "/api/votes/summary":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select c.id, c.fullName, count(v.id) as totalVotes
-                            from candidates c
-                            left join votes v on c.id = v.candidateId
-                            group by c.id, c.fullName
-                            order by totalVotes desc, c.fullName asc
-                            """
-                        )
-                        rows = cur.fetchall()
-                return self._send_json(rows)
+                if path == "/api/votes/summary":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select c.id, c.fullName, count(v.id) as totalVotes
+                                from candidates c
+                                left join votes v on c.id = v.candidateId
+                                group by c.id, c.fullName
+                                order by totalVotes desc, c.fullName asc
+                                """
+                            )
+                            rows = cur.fetchall()
+                    return self._send_json(rows)
 
-            if path == "/api/scores/ranking":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select c.id,
-                                   c.fullName,
-                                   round(avg(coalesce(s.themeChosenScore, 0) + coalesce(s.themeImposedScore, 0)), 2)
-                                   as averageScore,
-                                   count(s.id) as passages
-                            from candidates c
-                            left join scores s on c.id = s.candidateId
-                            group by c.id, c.fullName
-                            order by averageScore desc nulls last, passages desc, c.fullName asc
-                            """
-                        )
-                        rows = cur.fetchall()
-                return self._send_json(rows)
+                if path == "/api/scores/ranking":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select c.id,
+                                       c.fullName,
+                                       round(avg(coalesce(s.themeChosenScore, 0) + coalesce(s.themeImposedScore, 0)), 2)
+                                       as averageScore,
+                                       count(s.id) as passages
+                                from candidates c
+                                left join scores s on c.id = s.candidateId
+                                group by c.id, c.fullName
+                                order by averageScore desc nulls last, passages desc, c.fullName asc
+                                """
+                            )
+                            rows = cur.fetchall()
+                    return self._send_json(rows)
 
-            if path == "/api/tournament-settings":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute("select * from tournament_settings where id = 1")
-                        row = cur.fetchone()
-                return self._send_json(row or {})
+                if path == "/api/tournament-settings":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute("select * from tournament_settings where id = 1")
+                            row = cur.fetchone()
+                    return self._send_json(row or {})
 
-            if path == "/api/contact-messages":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select id, fullName, email, subject, message, ip, archived, createdAt
-                            from contact_messages
-                            order by id desc
-                            limit 500
-                            """
-                        )
-                        rows = cur.fetchall()
-                return self._send_json(rows)
+                if path == "/api/contact-messages":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select id, fullName, email, subject, message, ip, archived, createdAt
+                                from contact_messages
+                                order by id desc
+                                limit 500
+                                """
+                            )
+                            rows = cur.fetchall()
+                    return self._send_json(rows)
 
-            if path == "/api/admin-audit":
-                with get_conn() as conn:
-                    with conn.cursor(row_factory=dict_row) as cur:
-                        cur.execute(
-                            """
-                            select id, action, payload, ip, createdAt
-                            from admin_audit
-                            order by id desc
-                            limit 500
-                            """
-                        )
-                        rows = cur.fetchall()
-                return self._send_json(rows)
+                if path == "/api/admin-audit":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute(
+                                """
+                                select id, action, payload, ip, createdAt
+                                from admin_audit
+                                order by id desc
+                                limit 500
+                                """
+                            )
+                            rows = cur.fetchall()
+                    return self._send_json(rows)
 
-            return self._send_json({"message": "Not found"}, 404)
+                return self._send_json({"message": "Not found"}, 404)
 
-        return self._serve_file(path)
+            return self._serve_file(path)
         except APIError as error:
             self._handle_api_error(error)
         except Exception as error:
             self._handle_api_error(error)
 
     def do_POST(self):
-        try:
-            parsed = urlparse(self.path)
+        parsed = urlparse(self.path)
         path = parsed.path
 
         if path == "/api/admin/change-password":
@@ -594,30 +667,24 @@ class Handler(BaseHTTPRequestHandler):
             if len(new_password) < 8:
                 return self._send_json({"message": "Le mot de passe doit contenir au moins 8 caractères."}, 400)
             
-            # Vérifier le mot de passe actuel
-            if current_password != ADMIN_PASSWORD:
+            # Vérifier le mot de passe actuel (hash stocké)
+            current_hash = self._get_admin_password_hash()
+            if not current_hash or not check_password(current_password, current_hash):
                 return self._send_json({"message": "Mot de passe actuel incorrect."}, 401)
-            
-            # Mettre à jour la variable globale
-            globals()['ADMIN_PASSWORD'] = new_password
-            
-            # Aussi enregistrer dans la base de données pour persistance si disponible
-            if db_ready():
-                with get_conn() as conn:
-                    with conn.cursor() as cur:
-                        # Créer une table de configuration si elle n'existe pas
-                        cur.execute("""
-                            create table if not exists admin_config (
-                                key text primary key,
-                                value text,
-                                updatedAt timestamp with time zone default now()
-                            )
-                        """)
-                        cur.execute(
-                            "insert into admin_config (key, value) values (%s, %s) on conflict (key) do update set value = %s, updatedAt = now()",
-                            ("admin_password_hash", hashlib.sha256(new_password.encode()).hexdigest(), hashlib.sha256(new_password.encode()).hexdigest())
-                        )
-                    conn.commit()
+
+            if not self._require_db():
+                return
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        insert into admin_config (key, value)
+                        values ('admin_password_hash', %s)
+                        on conflict (key) do update set value = excluded.value, updatedAt = now()
+                        """,
+                        (hash_password(new_password),),
+                    )
+                conn.commit()
             
             self._audit("admin_change_password", {})
             return self._send_json({"message": "Mot de passe changé avec succès."})
@@ -701,7 +768,7 @@ class Handler(BaseHTTPRequestHandler):
                 }
             ):
                 return self._send_json({"message": "Message trop long."}, 400)
-            if not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", email):
+            if not validate_email(email):
                 return self._send_json({"message": "Email invalide."}, 400)
             with get_conn() as conn:
                 with conn.cursor() as cur:
@@ -726,6 +793,10 @@ class Handler(BaseHTTPRequestHandler):
             normalized = normalize_whatsapp(payload.get("whatsapp"))
             if not normalized:
                 return self._send_json({"message": "Numéro WhatsApp invalide."}, 400)
+            if payload.get("email") and not validate_email(payload.get("email")):
+                return self._send_json({"message": "Email invalide."}, 400)
+            if payload.get("phone") and not validate_phone(payload.get("phone")):
+                return self._send_json({"message": "Téléphone invalide."}, 400)
             if not validate_lengths(payload):
                 return self._send_json({"message": "Certains champs dépassent la taille maximale."}, 400)
             if payload.get("quranLevel", "") not in ALLOWED_LEVELS:
@@ -849,6 +920,10 @@ class Handler(BaseHTTPRequestHandler):
             clean = {k: v for k, v in data.items() if v not in [None, ""]}
             if not validate_lengths(clean):
                 return self._send_json({"message": "Certains champs dépassent la taille maximale."}, 400)
+            if "email" in clean and not validate_email(clean["email"]):
+                return self._send_json({"message": "Email invalide."}, 400)
+            if "phone" in clean and not validate_phone(clean["phone"]):
+                return self._send_json({"message": "Téléphone invalide."}, 400)
             if "quranLevel" in clean and clean["quranLevel"] not in ALLOWED_LEVELS:
                 return self._send_json({"message": "Niveau invalide."}, 400)
             if "status" in clean and clean["status"] not in ALLOWED_STATUSES:
@@ -903,6 +978,10 @@ class Handler(BaseHTTPRequestHandler):
                     normalized = normalize_whatsapp(payload.get("whatsapp"))
                     if not normalized:
                         return self._send_json({"message": "Numéro WhatsApp invalide."}, 400)
+                    if payload.get("email") and not validate_email(payload.get("email")):
+                        return self._send_json({"message": "Email invalide."}, 400)
+                    if payload.get("phone") and not validate_phone(payload.get("phone")):
+                        return self._send_json({"message": "Téléphone invalide."}, 400)
                     if not validate_lengths(payload):
                         return self._send_json({"message": "Certains champs dépassent la taille maximale."}, 400)
                     if payload.get("quranLevel", "") not in ALLOWED_LEVELS:
@@ -989,6 +1068,8 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/contact-messages/"):
             if not self._require_admin():
                 return
+            if not self._require_db():
+                return
             message_id = path.rsplit("/", 1)[-1]
             if not message_id.isdigit():
                 return self._send_json({"message": "ID message invalide."}, 400)
@@ -1044,16 +1125,13 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
         self._audit("settings_update", {"fields": list(payload.keys())})
         return self._send_json({"message": "Paramètres du tournoi mis à jour."})
-        except APIError as error:
-            self._handle_api_error(error)
-        except Exception as error:
-            self._handle_api_error(error)
 
     def do_DELETE(self):
-        try:
-            path = urlparse(self.path).path
+        path = urlparse(self.path).path
         if path.startswith("/api/contact-messages/"):
             if not self._require_admin():
+                return
+            if not self._require_db():
                 return
             message_id = path.rsplit("/", 1)[-1]
             if not message_id.isdigit():
@@ -1085,10 +1163,6 @@ class Handler(BaseHTTPRequestHandler):
             conn.commit()
         self._audit("candidate_delete", {"id": candidate_id})
         return self._send_json({"message": "Candidat supprimé."})
-        except APIError as error:
-            self._handle_api_error(error)
-        except Exception as error:
-            self._handle_api_error(error)
 
 
 def get_client_ip(handler):
@@ -1139,15 +1213,34 @@ def validate_phone(phone):
 
 
 def hash_password(password):
-    """Hash un mot de passe avec SHA256"""
+    """Hash un mot de passe avec PBKDF2-HMAC-SHA256."""
     if not password:
         return ""
-    return hashlib.sha256(password.encode()).hexdigest()
+    iterations = 210000
+    salt = secrets.token_hex(16)
+    derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations)
+    return f"pbkdf2_sha256${iterations}${salt}${derived.hex()}"
 
 
 def check_password(password, hashed):
-    """Vérifie un mot de passe"""
-    return hash_password(password) == hashed
+    """Vérifie un mot de passe hashé PBKDF2. Compatibilité SHA256 legacy incluse."""
+    if not password or not hashed:
+        return False
+    if hashed.startswith("pbkdf2_sha256$"):
+        try:
+            _, iterations_raw, salt, expected = hashed.split("$", 3)
+            iterations = int(iterations_raw)
+            derived = hashlib.pbkdf2_hmac(
+                "sha256",
+                password.encode("utf-8"),
+                salt.encode("utf-8"),
+                iterations,
+            ).hex()
+            return hmac.compare_digest(derived, expected)
+        except Exception:
+            return False
+    legacy = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(legacy, hashed)
 
 
 def check_rate_limit(ip, action):

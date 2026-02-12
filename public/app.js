@@ -20,21 +20,6 @@ const publicStatCities = document.getElementById('publicStatCities');
 
 let cachedCandidates = [];
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function safeUrl(value) {
-  const url = String(value ?? '').trim();
-  if (!url) return '';
-  return /^https?:\/\//i.test(url) ? url : '';
-}
-
 registrationForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const submitBtn = registrationForm.querySelector('button[type="submit"]');

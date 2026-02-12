@@ -3,6 +3,71 @@
  * Gestion des toasts, fetch, validation, sécurité
  */
 
+// ==================== STRING & HTML UTILITIES ====================
+
+/**
+ * Échappe les caractères HTML pour prévenir XSS
+ */
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text || '').replace(/[&<>"']/g, m => map[m]);
+}
+
+/**
+ * Vérifie et nettoie une URL
+ */
+function safeUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  return /^https?:\/\//i.test(url) ? url : '';
+}
+
+/**
+ * Extrait les initiales d'un nom
+ */
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
+}
+
+/**
+ * Formate une date en français
+ */
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+/**
+ * Formate un nombre en français
+ */
+function formatNumber(num) {
+  return new Intl.NumberFormat('fr-FR').format(num);
+}
+
+/**
+ * Arrondit à N décimales
+ */
+function round(num, decimals = 2) {
+  return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+}
+
 // ==================== NOTIFICATIONS ====================
 
 /**
@@ -167,20 +232,6 @@ function isValidPhone(phone) {
 // ==================== SÉCURITÉ ====================
 
 /**
- * Échappe les caractères HTML pour prévenir XSS
- */
-function escapeHtml(text) {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-  return String(text).replace(/[&<>"']/g, m => map[m]);
-}
-
-/**
  * Génère un token CSRF (côté client)
  */
 function generateCSRFToken() {
@@ -204,36 +255,6 @@ function getCSRFToken() {
 function createAuthHeader(username, password) {
   const credentials = btoa(`${username}:${password}`);
   return `Basic ${credentials}`;
-}
-
-// ==================== UTILITAIRES ====================
-
-/**
- * Formate une date en français
- */
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('fr-FR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-/**
- * Formate un nombre en français
- */
-function formatNumber(num) {
-  return new Intl.NumberFormat('fr-FR').format(num);
-}
-
-/**
- * Arrondit à N décimales
- */
-function round(num, decimals = 2) {
-  return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
 
 /**

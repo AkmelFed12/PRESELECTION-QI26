@@ -645,7 +645,7 @@ exportRankingPdf?.addEventListener('click', () => {
   const rows = rankingCache
     .map(
       (r, idx) =>
-        `<tr><td>${idx + 1}</td><td>${r.fullName}</td><td>${r.averageScore ?? '-'}</td><td>${r.passages}</td></tr>`,
+        `<tr><td>${idx + 1}</td><td>${escapeHtml(r.fullName)}</td><td>${escapeHtml(r.averageScore ?? '-')}</td><td>${escapeHtml(r.passages)}</td></tr>`,
     )
     .join('');
   const html = `
