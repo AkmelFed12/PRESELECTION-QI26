@@ -654,9 +654,127 @@ tbody tr:hover { background: #fffaf0; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: #0f3b3f;
+}
+
+.modal-content p {
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+/* Filters grid */
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.filters-grid label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.filters-grid input,
+.filters-grid select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+/* Improved candidate card */
+.candidate-info .location {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.candidate-info .level {
+  font-size: 0.85rem;
+  color: #c59b3f;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.candidate-info .motivation {
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+  margin-top: 6px;
+}
+
 @media (max-width: 720px) {
   .hero { flex-direction: column; align-items: flex-start; }
   .logo { width: 90px; height: 90px; }
   .candidate-card .photo { height: 160px; }
   .vote-btn { font-size: 1rem; padding: 12px 14px; }
+  .modal-content { padding: 30px 20px; }
+  .filters-grid { grid-template-columns: 1fr; }
 }
