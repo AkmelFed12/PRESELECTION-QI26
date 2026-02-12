@@ -1,63 +1,319 @@
 # Plateforme de présélection — Quiz Islamique 2026
 
-Application web professionnelle pour l'Association des Serviteurs d'Allah Azawajal.
+Application web professionnelle pour l'Association des Serviteurs d'Allah Azawajal.  
+**Version 2.0** — Sécurisée, Accessible, Production-Ready ✓
 
-## Fonctionnalités
+## 🎯 Fonctionnalités Principales
 
-- Inscription publique des candidats (WhatsApp obligatoire).
-- Enregistrement en base SQLite.
-- Redirection automatique vers le WhatsApp admin après inscription.
-- Espace admin protégé (identifiant `ASAAQI`, mot de passe `2026ASAA`).
-- Vue admin des candidatures.
-- Vote public pour les candidats.
-- Notation admin après chaque passage et classement automatique.
-- Paramétrage complet du format de compétition (64 candidats max, barrages, groupes, finale) avec modification manuelle.
-- Formulaire de contact public avec journal de suivi côté admin.
-- Journal d'audit admin (actions principales).
+### Pour les Candidats & Public
+- ✅ Inscription publique simple (nom, WhatsApp, email, niveau Islam)
+- ✅ Galerie interactive des candidats avec filtres avancés
+- ✅ Système de vote public en direct
+- ✅ Résultats publics en temps réel avec classement
+- ✅ Tableau de bord de statistiques avec graphiques Chart.js
+- ✅ Formulaire de contact avec suivi admin
+- ✅ Responsive design (mobile, tablet, desktop)
 
-## Lancer le projet
+### Pour les Administrateurs
+- ✅ Espace admin sécurisé (authentification Basic Auth)
+- ✅ Gestion complète des candidats (CRUD)
+- ✅ Système de notation par thème (choisi + imposé)
+- ✅ Classement automatique et qualification des finalistes
+- ✅ Paramétrage du tournoi (formats, seuils, groupes)
+- ✅ Gestion des messages de contact avec archivage
+- ✅ Journal d'audit complet des actions
+- ✅ Exports CSV/PDF des données
+
+### Sécurité & Qualité
+- ✅ CORS headers + Security headers (HSTS, CSP, X-Frame-Options)
+- ✅ Sanitization XSS complète
+- ✅ Validation inputs (email, phone, longueurs)
+- ✅ Rate limiting par action
+- ✅ Hash mot de passe SHA256
+- ✅ Gestion d'erreurs robuste
+- ✅ Accessibilité WCAG AA
+
+## 🚀 Installation
+
+### Prérequis
+- Python 3.9+
+- PostgreSQL (Render ou local)
+- pip
+
+### Lancer Localement
 
 ```bash
+# 1. Cloner le projet
+git clone <repo>
+cd PRESELECTION-QI26
+
+# 2. Installer dépendances
+pip install -r requirements.txt
+
+# 3. Configurer variables d'environnement
+export DATABASE_URL="postgresql://user:password@localhost/db"
+export ADMIN_PASSWORD="votre_mot_de_passe"
+
+# 4. Lancer le serveur
 python3 app.py
+
+# 5. Ouvrir dans le navigateur
+# http://localhost:3000
 ```
 
-Puis ouvrir: http://localhost:3000
+### Variables d'Environnement Essentielles
 
-## Deployer sur Render
+```bash
+# Base de données (OBLIGATOIRE)
+DATABASE_URL=postgresql://user:password@host/dbname
 
-- Type: Web Service
-- Build: `pip install -r requirements.txt`
-- Start: `python app.py`
+# Admin (défauts: admin / qi26admin2026)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=votre_mot_de_passe_sécurisé
+ADMIN_WHATSAPP=2250150070083  # optionnel
 
-Pour un usage production, placez le service derriere un proxy HTTPS (Caddy/Nginx/Render).
+# Stockage photos (optionnel, sinon upload désactivé)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_FOLDER=quiz-islamique  # optionnel
 
-## Base de donnees et photos
+# Email notifications (optionnel)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_FROM=noreply@quizislamique.com
+SMTP_TO=admin@quizislamique.com
+```
 
-- Base: PostgreSQL Render (variable `DATABASE_URL`)
-- Photos: Cloudinary
+## 📡 API Endpoints
 
-Variables d'environnement a configurer:
-- `DATABASE_URL`
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-- `ADMIN_WHATSAPP` (optionnel)
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-- `CLOUDINARY_FOLDER` (optionnel, defaut: `quiz-islamique`)
+### Endpoints Publics
 
-Notifications email (optionnel):
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `SMTP_FROM`
-- `SMTP_TO`
+```
+GET  /api/health                 - Vérifier santé serveur
+GET  /api/public-candidates      - Lister tous les candidats
+GET  /api/public-settings        - Paramètres publics (voting, registration status)
+GET  /api/public-results         - Résultats avec stats
+GET  /api/public-results/qualified - Top 10 qualifiés
 
-## Sauvegarde automatique (Google Drive)
+POST /api/candidates             - Inscrire candidat
+POST /api/votes                  - Voter pour candidat
+POST /api/contact-messages       - Envoyer message contact
+```
 
-Un cron job Render peut exporter la base et envoyer un dump quotidien sur Google Drive.
-Variables d'environnement pour le cron:
-- `DATABASE_URL`
-- `RCLONE_CONFIG` (contenu du fichier rclone.conf)
-- `GDRIVE_FOLDER` (optionnel, defaut: `QI26-Backups`)
+### Endpoints Admin (Auth Required)
+
+```
+GET  /api/candidates             - Lister tous candidats
+POST /api/admin/candidates       - Créer/modifier candidat
+DELETE /api/admin/candidates/:id - Supprimer candidat
+POST /api/admin/upload-photo     - Upload photo candidat
+
+POST /api/admin/change-password  - Changer mot de passe admin
+
+GET  /api/votes/summary          - Résumé des votes
+POST /api/scores                 - Enregistrer notation
+GET  /api/scores/ranking         - Classement par score
+
+GET  /api/tournament-settings    - Paramètres tournoi
+PUT  /api/tournament-settings    - Mettre à jour paramètres
+
+GET  /api/contact-messages       - Messages contact
+PUT  /api/contact-messages/:id   - Archiver/dés-archiver
+DELETE /api/contact-messages/:id - Supprimer message
+
+GET  /api/admin-audit            - Historique audit
+```
+
+## 🔐 Authentification
+
+### Admin Login
+- URL: `/admin.html`
+- Default: `admin` / `qi26admin2026`
+- Méthode: Basic Auth (Base64 encoded)
+- ⚠️ **À CHANGER EN PRODUCTION** via le formulaire "Sécurité"
+
+### Gestion Mot de Passe
+- Panel "Sécurité" → "Changer mot de passe"
+- Minimum 8 caractères
+- SHA256 hashing côté serveur
+
+## 📊 Pages Publiques
+
+| URL | Description |
+|-----|-------------|
+| `/` | Page d'accueil avec inscription |
+| `/admin.html` | Espace administrateur |
+| `/candidats.html` | Galerie interactif des candidats |
+| `/resultats.html` | Résultats et classement |
+| `/dashboard.html` | Statistiques en direct |
+| `/contact.html` | Formulaire de contact |
+| `/mentions-legales.html` | Mentions légales |
+| `/confidentialite.html` | Politique confidentialité |
+| `/reglement.html` | Règlement de la compétition |
+| `/faq.html` | Questions fréquentes |
+
+## 📁 Structure du Projet
+
+```
+.
+├── app.py                    # Serveur HTTP + API
+├── requirements.txt          # Dépendances Python
+├── README.md                 # Ce fichier
+├── IMPROVEMENTS.md           # Détails améliorations v2.0
+├── public/
+│   ├── index.html           # Page d'accueil
+│   ├── admin.html           # Admin panel
+│   ├── candidats.html       # Galerie candidats
+│   ├── resultats.html       # Résultats
+│   ├── dashboard.html       # Dashboard statistiques
+│   ├── contact.html         # Formulaire contact
+│   ├── *.html               # Pages légales
+│   ├── style.css            # Styles globaux
+│   ├── utils.js             # Fonctions réutilisables
+│   ├── app.js               # Logique page accueil
+│   ├── admin.js             # Logique admin panel
+│   ├── candidats.js         # Logique galerie candidats
+│   ├── resultats.js         # Logique résultats
+│   ├── dashboard.js         # Logique dashboard
+│   ├── contact.js           # Logique formulaire contact
+│   └── assets/              # Images, logos
+└── scripts/
+    └── backup_db.sh         # Sauvegarde automatique
+```
+
+## 🎨 Technologies Utilisées
+
+### Backend
+- **Python 3.9+** avec `http.server` (pas de framework tiers)
+- **PostgreSQL** pour la persistance
+- **psycopg3** pour driver DB
+- **Requests** pour webhooks/API externes
+
+### Frontend
+- **HTML5** avec sémantique
+- **CSS3** modernes (Grid, Flexbox, variables CSS)
+- **Vanilla JavaScript** (pas de framework)
+- **Chart.js** pour graphiques
+- **Base64** pour authentification
+
+### Sécurité
+- **CORS headers** pour prévention d'abus
+- **Security headers** (CSP, HSTS, X-Frame-Options)
+- **XSS sanitization** (escape HTML)
+- **Rate limiting** par IP et action
+- **HTTPS forced** en production
+- **SHA256** password hashing
+
+## 🌍 Déploiement
+
+### Sur Render.com
+
+1. **Fork/Push du repo GitHub**
+```bash
+git remote add origin <your-github-repo>
+git push -u origin main
+```
+
+2. **Créer Web Service Render**
+   - Repository: Votre repo GitHub
+   - Build: `pip install -r requirements.txt`
+   - Start: `python app.py`
+   - Port: 3000
+
+3. **Configurer Variables d'Environnement**
+   - Dashboard Render → Environment
+   - Ajouter toutes les vars du section "Variables d'Environnement"
+
+4. **Configurer PostgreSQL**
+   - Créer PostgreSQL Database sur Render
+   - Copier DATABASE_URL → Web Service env
+
+5. **Optionnel: Cloudinary**
+   - S'inscrire sur cloudinary.com
+   - Copier credentials → Web Service env
+
+### Avec Docker
+
+```dockerfile
+FROM python:3.11
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "app.py"]
+```
+
+```bash
+docker build -t quiz-islamique .
+docker run -p 3000:3000 -e DATABASE_URL=... quiz-islamique
+```
+
+## 🧪 Test
+
+### Test Local
+```bash
+# 1. Ouvrir http://localhost:3000
+# 2. Admin: http://localhost:3000/admin.html
+# 3. Login: admin / qi26admin2026
+# 4. Tester inscription, vote, notation
+```
+
+### Test Endpoints
+```bash
+# Santé serveur
+curl http://localhost:3000/api/health
+
+# Candidats publics
+curl http://localhost:3000/api/public-candidates
+
+# Admin (avec auth)
+curl -H "Authorization: Basic $(echo -n 'admin:qi26admin2026' | base64)" \
+  http://localhost:3000/api/candidates
+```
+
+## 📝 Logs et Monitoring
+
+### Consulter les logs
+```bash
+# Local
+tail -f /tmp/app.log
+
+# Render
+Render Dashboard → Logs
+```
+
+### Erreurs Courantes
+
+| Erreur | Cause | Solution |
+|--------|-------|----------|
+| `DATABASE_URL not configured` | Pas de variable env | Ajouter DATABASE_URL |
+| `401 Unauthorized` | Mauvais credentials | Vérifier admin/password |
+| `413 Payload Too Large` | Upload trop gros | Max 3MB |
+| `CORS error` | Domaine non autorisé | Ajouter à CORS headers |
+
+## 🚨 Sécurité en Production
+
+- ✅ **Activer HTTPS**: Render le force automatiquement
+- ✅ **Changer mot de passe admin**: Via formulaire sécurité
+- ✅ **Utiliser variables d'environnement**: Jamais en dur dans le code
+- ✅ **Enable rate limiting**: Déjà implémenté
+- ✅ **Backup BD réguliers**: Via cron Render
+- ✅ **Monitoring**: Configurer alertes Render
+- ⚠️ **NEVER**: Partager DATABASE_URL, commiter secrets
+
+## 📄 Licence & Crédits
+
+**Association des Serviteurs d'Allah Azawajal**
+- Contactez: admin@quizislamique.com
+- WhatsApp: +225 01 50 07 00 83
+
+---
+
+**Version**: 2.0.0  
+**Dernière mise à jour**: Février 2026  
+**Statut**: Production ✓  
+**Support**: GitHub Issues ou Email  
+
