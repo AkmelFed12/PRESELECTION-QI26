@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Statistiques | Quiz Islamique 2026</title>
+    <meta name="description" content="Statistiques et graphiques en direct du Quiz Islamique 2026." />
+    <link rel="icon" href="assets/logo-association.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Aller au contenu</a>
+    <header class="hero compact">
+      <img src="assets/logo-association.svg" alt="Logo Les Serviteurs d'Allah" class="logo" />
+      <div class="hero-content">
+        <h1>Statistiques en direct</h1>
+        <p class="subtitle">Suivi des candidats, votes et classement en temps réel.</p>
+      </div>
+      <div class="hero-actions">
+        <a href="index.html" class="btn-link outline">Accueil</a>
+        <a href="resultats.html" class="btn-link outline">Résultats</a>
+      </div>
+    </header>
+
+    <main id="mainContent" class="layout">
+      <section class="card accent-slate">
+        <h2>Statistiques globales</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span>Candidats inscrits</span>
+            <strong id="dashCandidates">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Votes exprimés</span>
+            <strong id="dashVotes">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Passages notés</span>
+            <strong id="dashScores">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Pays représentés</span>
+            <strong id="dashCountries">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Top 10 candidats (votes)</h2>
+        <div class="chart-container">
+          <canvas id="topCandidatesChart"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Distribution des votes par pays</h2>
+        <div class="chart-container">
+          <canvas id="countryVotesChart"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Candidats et votes</h2>
+        <div class="chart-container">
+          <canvas id="candidatesProgressChart"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Top 5 candidats</h2>
+        <div id="topCandidatesList" class="top-list"></div>
+      </section>
+    </main>
+
+    <script defer src="dashboard.js"></script>
+  </body>
+</html>

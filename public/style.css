@@ -514,6 +514,107 @@ tbody tr:hover { background: #fffaf0; }
   margin: 6px 0 0;
   color: var(--muted);
 }
+
+/* Dashboard styles */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, #f5f0e8, #fffbf3);
+  border: 1px solid #e8dfc4;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.stat-card span {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.stat-card strong {
+  display: block;
+  font-size: 2.5rem;
+  color: #c59b3f;
+  font-weight: 700;
+}
+
+.chart-container {
+  position: relative;
+  height: 400px;
+  margin: 20px 0;
+}
+
+.top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: #faf8f3;
+  border-radius: 8px;
+  border-left: 4px solid #c59b3f;
+}
+
+.top-item .rank {
+  font-size: 2rem;
+  min-width: 50px;
+  text-align: center;
+}
+
+.top-item .info {
+  flex: 1;
+}
+
+.top-item .name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.top-item .location {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.top-item .stats {
+  display: flex;
+  gap: 16px;
+  text-align: right;
+}
+
+.top-item .votes,
+.top-item .score {
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.top-item .votes::before {
+  content: 'Votes';
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.top-item .score::before {
+  content: 'Note';
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .site-footer {
   display: flex;
   flex-wrap: wrap;
