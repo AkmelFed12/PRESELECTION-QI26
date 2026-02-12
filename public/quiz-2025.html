@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Le Quiz Islamique 2025 en Images</title>
+    <meta name="description" content="Galerie publique des images et vidéos du Quiz Islamique 2025." />
+    <link rel="icon" href="assets/logo-association.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#mainContent">Aller au contenu</a>
+    <header class="hero compact">
+      <img src="assets/logo-association.svg" alt="Logo Les Serviteurs d'Allah" class="logo" />
+      <div class="hero-content">
+        <h1>Le Quiz Islamique 2025 en Images</h1>
+        <p class="subtitle">Diaporama public des moments forts (photos et vidéos).</p>
+      </div>
+      <div class="hero-actions">
+        <a href="index.html" class="btn-link outline">Accueil</a>
+        <a href="admin.html" class="btn-link outline">Admin</a>
+      </div>
+    </header>
+
+    <main id="mainContent" class="layout admin-layout">
+      <section class="card accent-emerald">
+        <h2>Galerie</h2>
+        <p id="galleryStatus" class="status" role="status" aria-live="polite">Chargement du diaporama...</p>
+
+        <div class="slideshow-stage" id="slideshowStage">
+          <img id="slideImage" class="slide-media hidden" alt="Image Quiz Islamique 2025" />
+          <video id="slideVideo" class="slide-media hidden" controls muted playsinline preload="metadata"></video>
+        </div>
+
+        <div class="slideshow-controls">
+          <button id="prevSlide" type="button">Précédent</button>
+          <button id="toggleAuto" type="button">Pause</button>
+          <button id="nextSlide" type="button">Suivant</button>
+        </div>
+
+        <p id="slideCounter" class="muted-note">0 / 0</p>
+      </section>
+    </main>
+
+    <script src="utils.js"></script>
+    <script defer src="quiz-2025.js"></script>
+  </body>
+</html>

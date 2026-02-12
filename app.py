@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import psycopg
 from psycopg.rows import dict_row
@@ -22,6 +22,17 @@ import requests
 
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
+QUIZ_2025_MEDIA_DIR = os.environ.get("QUIZ_2025_MEDIA_DIR", str(PUBLIC_DIR / "quiz-2025-media"))
+QUIZ_2025_ALLOWED_EXT = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mov": "video/quicktime",
+}
 
 # ==================== GESTION D'ERREURS ====================
 class APIError(Exception):
@@ -375,6 +386,53 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
+    def _quiz_media_root(self):
+        return Path(QUIZ_2025_MEDIA_DIR).resolve()
+
+    def _list_quiz_media(self):
+        root = self._quiz_media_root()
+        if not root.exists() or not root.is_dir():
+            return []
+        items = []
+        for file in sorted(root.iterdir(), key=lambda x: x.name.lower()):
+            if not file.is_file():
+                continue
+            ext = file.suffix.lower()
+            if ext not in QUIZ_2025_ALLOWED_EXT:
+                continue
+            media_type = "video" if QUIZ_2025_ALLOWED_EXT[ext].startswith("video/") else "image"
+            items.append(
+                {
+                    "name": file.name,
+                    "url": f"/media/{file.name}",
+                    "type": media_type,
+                }
+            )
+        return items
+
+    def _serve_quiz_media(self, rel_path):
+        root = self._quiz_media_root()
+        if not root.exists() or not root.is_dir():
+            return self._send_json({"message": "Dossier média non configuré ou introuvable."}, 404)
+        requested = unquote(rel_path[len("/media/"):]).strip()
+        if not requested:
+            return self._send_json({"message": "Fichier média manquant."}, 400)
+        path = (root / requested).resolve()
+        if root not in path.parents or not path.exists() or not path.is_file():
+            return self._send_json({"message": "Média introuvable."}, 404)
+        ext = path.suffix.lower()
+        content_type = QUIZ_2025_ALLOWED_EXT.get(ext)
+        if not content_type:
+            return self._send_json({"message": "Type de média non supporté."}, 415)
+        content = path.read_bytes()
+        self.send_response(200)
+        self._set_security_headers()
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "public, max-age=3600")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
     def _require_db(self):
         if not db_ready():
             self._send_json({"message": "DATABASE_URL non configuré."}, 500)
@@ -437,6 +495,18 @@ class Handler(BaseHTTPRequestHandler):
 
             if path == "/":
                 return self._serve_file("index.html")
+
+            if path == "/api/public-media":
+                items = self._list_quiz_media()
+                return self._send_json(
+                    {
+                        "items": items,
+                        "configured": bool(items) or self._quiz_media_root().exists(),
+                    }
+                )
+
+            if path.startswith("/media/"):
+                return self._serve_quiz_media(path)
 
             if path.startswith("/api/"):
                 if not self._require_db():
