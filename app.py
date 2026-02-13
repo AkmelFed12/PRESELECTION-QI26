@@ -93,18 +93,19 @@ MAX_LENGTHS = {
 }
 
 _raw_db_url = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/quiz26")
+# Priorité à DATABASE_EXTERNAL_URL si défini (URL Render External copiée depuis le Dashboard)
+_raw_db_url = os.environ.get("DATABASE_EXTERNAL_URL", _raw_db_url) or _raw_db_url
 # Normaliser postgres:// -> postgresql:// (requis par psycopg3 sur certains hébergeurs)
 _url = _raw_db_url.replace("postgres://", "postgresql://", 1) if _raw_db_url.startswith("postgres://") else _raw_db_url
 # Forcer SSL et timeout pour Render/Heroku (PostgreSQL distant, base peut être en veille)
 if _url and ("dpg-" in _url or "render.com" in _url or "amazonaws.com" in _url):
     _sep = "&" if "?" in _url else "?"
     _url = _url + _sep + "sslmode=require&connect_timeout=60"
-# Render Internal URL (dpg-xxx-a) échoue parfois → convertir en External
-# Région via RENDER_DB_REGION (oregon, ohio, virginia, frankfurt, singapore)
+# Render Internal URL (dpg-xxx-a) échoue souvent → convertir en External
 if _url and "dpg-" in _url and ".render.com" not in _url:
     _region = os.environ.get("RENDER_DB_REGION", "oregon")
     _suffix = f".{_region}-postgres.render.com"
-    _m = re.search(r"@(dpg-[a-z0-9]+-a)(/|$)", _url)
+    _m = re.search(r"@(dpg-[a-z0-9]+-a)(/|\?|$)", _url)
     if _m:
         _url = _url.replace(_m.group(1), _m.group(1) + _suffix, 1)
 DATABASE_URL = _url
@@ -124,15 +125,16 @@ def db_ready():
     return bool(DATABASE_URL)
 
 
-# Connection pool (évite de saturer PostgreSQL)
+# Connection pool (désactivé par défaut sur Render free: base peut dormir)
+USE_DB_POOL = os.environ.get("USE_DB_POOL", "0").lower() in ("1", "true", "yes")
 _connection_pool = None
 
 
 def get_pool():
     global _connection_pool
-    if _connection_pool is None and db_ready():
+    if _connection_pool is None and db_ready() and USE_DB_POOL:
         min_conn = 1
-        max_conn = min(10, 20)  # Limite pour plan free Render
+        max_conn = min(10, 20)
         _connection_pool = ConnectionPool(
             DATABASE_URL,
             min_size=min_conn,

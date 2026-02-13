@@ -295,6 +295,20 @@ Render Dashboard → Logs
 | `413 Payload Too Large` | Upload trop gros | Max 3MB |
 | `CORS error` | Domaine non autorisé | Ajouter à CORS headers |
 
+## 🔧 Dépannage : Erreur base de données sur Render
+
+Si vous voyez « Erreur base de données. Vérifiez DATABASE_URL... » :
+
+1. **Utiliser l’URL externe**  
+   Render Dashboard → base PostgreSQL → **Connect** → **External**  
+   Copier l’URL complète (du type `postgresql://user:pass@dpg-xxx-a.oregon-postgres.render.com/dbname`)
+
+2. **Définir `DATABASE_EXTERNAL_URL`**  
+   Dashboard → service web → **Environment** → ajouter :  
+   `DATABASE_EXTERNAL_URL` = l’URL externe copiée
+
+3. **Sauvegarder** et redéployer (ou attendre le redéploiement automatique).
+
 ## 🚨 Sécurité en Production
 
 - ✅ **Activer HTTPS**: Render le force automatiquement
