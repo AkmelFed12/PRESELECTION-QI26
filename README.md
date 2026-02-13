@@ -67,9 +67,9 @@ python3 app.py
 # Base de données (OBLIGATOIRE)
 DATABASE_URL=postgresql://user:password@host/dbname
 
-# Admin (OBLIGATOIRE)
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=votre_mot_de_passe_sécurisé
+# Admin (par défaut: asaa2026 / ASAALMO2026)
+ADMIN_USERNAME=asaa2026
+ADMIN_PASSWORD=ASAALMO2026
 ADMIN_WHATSAPP=2250150070083  # optionnel
 
 # Stockage photos (optionnel, sinon upload désactivé)
@@ -92,7 +92,7 @@ SMTP_TO=admin@quizislamique.com
 ### Endpoints Publics
 
 ```
-GET  /api/health                 - Vérifier santé serveur
+GET  /api/health                 - Santé serveur + statut base de données
 GET  /api/public-candidates      - Lister tous les candidats
 GET  /api/public-settings        - Paramètres publics (voting, registration status)
 GET  /api/public-results         - Résultats avec stats
@@ -106,6 +106,7 @@ POST /api/contact-messages       - Envoyer message contact
 ### Endpoints Admin (Auth Required)
 
 ```
+GET  /api/admin/dashboard        - Données admin complètes (1 requête)
 GET  /api/candidates             - Lister tous candidats
 POST /api/admin/candidates       - Créer/modifier candidat
 DELETE /api/admin/candidates/:id - Supprimer candidat

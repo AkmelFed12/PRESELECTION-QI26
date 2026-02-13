@@ -1,9 +1,11 @@
+import atexit
 import base64
 import datetime
 import hmac
 import hashlib
 import io
 import json
+import logging
 import os
 import re
 import secrets
@@ -21,7 +23,16 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 import requests
+
+# ==================== LOGGING ====================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
@@ -48,8 +59,8 @@ class APIError(Exception):
         self.details = details or {}
         super().__init__(self.message)
 
-# Admin credentials - utiliser des variables d'environnement en production
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+# Admin credentials par défaut
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "asaa2026")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "ASAALMO2026")
 ADMIN_WHATSAPP = os.environ.get("ADMIN_WHATSAPP", "2250150070083")
 CODE_PREFIX = "QI26"
@@ -81,7 +92,7 @@ MAX_LENGTHS = {
     "contactMessage": 1200,
 }
 
-_raw_db_url = os.environ.get("DATABASE_URL", "")
+_raw_db_url = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/quiz26")
 # Normaliser postgres:// -> postgresql:// (requis par psycopg3 sur certains hébergeurs comme Render/Heroku)
 DATABASE_URL = (_raw_db_url.replace("postgres://", "postgresql://", 1) if _raw_db_url.startswith("postgres://") else _raw_db_url)
 CLD_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
@@ -100,6 +111,62 @@ def db_ready():
     return bool(DATABASE_URL)
 
 
+# Connection pool (évite de saturer PostgreSQL)
+_connection_pool = None
+
+
+def get_pool():
+    global _connection_pool
+    if _connection_pool is None and db_ready():
+        min_conn = 1
+        max_conn = min(10, 20)  # Limite pour plan free Render
+        _connection_pool = ConnectionPool(
+            DATABASE_URL,
+            min_size=min_conn,
+            max_size=max_conn,
+        )
+        atexit.register(lambda: _connection_pool.close() if _connection_pool else None)
+    return _connection_pool
+
+
+def get_conn():
+    pool = get_pool()
+    if pool:
+        return pool.connection()
+    return psycopg.connect(DATABASE_URL)
+
+
+def _row_to_camel(row):
+    """Convertit les clés snake_case PostgreSQL en camelCase pour l'API."""
+    if not row or not isinstance(row, dict):
+        return row
+    mapping = {
+        "candidatecode": "candidateCode",
+        "fullname": "fullName",
+        "quranlevel": "quranLevel",
+        "photourl": "photoUrl",
+        "createdat": "createdAt",
+        "candidateid": "candidateId",
+        "totalvotes": "totalVotes",
+        "averagescore": "averageScore",
+        "themechosenscore": "themeChosenScore",
+        "themeimposedscore": "themeImposedScore",
+        "judgename": "judgeName",
+        "votingenabled": "votingEnabled",
+        "registrationlocked": "registrationLocked",
+        "competitionclosed": "competitionClosed",
+        "announcementtext": "announcementText",
+        "schedulejson": "scheduleJson",
+        "updatedat": "updatedAt",
+        "fullname": "fullName",
+    }
+    out = {}
+    for k, v in row.items():
+        key_lower = k.lower() if isinstance(k, str) else k
+        out[mapping.get(key_lower, k)] = v
+    return out
+
+
 def json_default(value):
     if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
         return value.isoformat()
@@ -110,10 +177,6 @@ def json_default(value):
 
 def cloudinary_ready():
     return bool(CLD_CLOUD_NAME and CLD_API_KEY and CLD_API_SECRET)
-
-
-def get_conn():
-    return psycopg.connect(DATABASE_URL)
 
 
 def init_db():
@@ -259,10 +322,18 @@ class Handler(BaseHTTPRequestHandler):
             "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         )
 
-        # CORS - Accepter les requêtes du même domaine et locales
+        # CORS - Même domaine, localhost, ou Render
         origin = self.headers.get("Origin", "")
-        if not origin or origin.endswith(("localhost", ".local", "127.0.0.1")):
-            self.send_header("Access-Control-Allow-Origin", origin or "*")
+        host = self.headers.get("Host", "")
+        if origin and (
+            origin.endswith((".render.com", ".local"))
+            or "localhost" in origin
+            or "127.0.0.1" in origin
+            or origin in (f"https://{host}", f"http://{host}")
+        ):
+            self.send_header("Access-Control-Allow-Origin", origin)
+        elif not origin:
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.send_header("Access-Control-Max-Age", "3600")
@@ -287,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         except Exception as e:
-            print(f"Error sending JSON response: {e}")
+            logger.exception("Erreur envoi JSON")
             try:
                 fallback = json.dumps({"error": "Erreur serveur interne"}).encode("utf-8")
                 self.send_response(500)
@@ -615,8 +686,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": error.message, **error.details}, error.status_code)
         else:
             error_msg = str(error)
-            print(f"Unexpected error: {error_msg}")
-            print(traceback.format_exc())
+            logger.exception("Erreur API: %s", error_msg)
             # Messages plus explicites pour les erreurs courantes (connexion DB, tables manquantes)
             if isinstance(error, (psycopg.OperationalError, psycopg.Error)):
                 self._send_json({"error": "Erreur base de données. Vérifiez DATABASE_URL et que la base est accessible."}, 500)
@@ -688,7 +758,16 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 if path == "/api/health":
-                    return self._send_json({"status": "ok"})
+                    health = {"status": "ok", "database": "unknown"}
+                    try:
+                        with get_conn() as conn:
+                            with conn.cursor() as cur:
+                                cur.execute("select 1")
+                        health["database"] = "ok"
+                    except Exception as e:
+                        health["database"] = "error"
+                        health["databaseError"] = str(e)[:100]
+                    return self._send_json(health)
 
                 if path == "/api/public-candidates":
                     with get_conn() as conn:
@@ -807,6 +886,58 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._require_admin():
                     return
 
+                if path == "/api/admin/dashboard":
+                    with get_conn() as conn:
+                        with conn.cursor(row_factory=dict_row) as cur:
+                            cur.execute("select * from candidates order by id desc")
+                            candidates = cur.fetchall()
+                            cur.execute(
+                                """
+                                select c.id, c.fullName, count(v.id) as totalVotes
+                                from candidates c
+                                left join votes v on c.id = v.candidateId
+                                group by c.id, c.fullName
+                                order by totalVotes desc, c.fullName asc
+                                """
+                            )
+                            votes = cur.fetchall()
+                            cur.execute(
+                                """
+                                select c.id, c.fullName,
+                                       round(avg(coalesce(s.themeChosenScore, 0) + coalesce(s.themeImposedScore, 0)), 2)
+                                       as averageScore, count(s.id) as passages
+                                from candidates c
+                                left join scores s on c.id = s.candidateId
+                                group by c.id, c.fullName
+                                order by averageScore desc nulls last, passages desc, c.fullName asc
+                                """
+                            )
+                            ranking = cur.fetchall()
+                            cur.execute("select * from tournament_settings where id = 1")
+                            settings = cur.fetchone() or {}
+                            cur.execute(
+                                """
+                                select id, fullName, email, subject, message, ip, archived, createdAt
+                                from contact_messages order by id desc limit 500
+                                """
+                            )
+                            contacts = cur.fetchall()
+                            cur.execute(
+                                """
+                                select id, action, payload, ip, createdAt
+                                from admin_audit order by id desc limit 500
+                                """
+                            )
+                            audit = cur.fetchall()
+                    return self._send_json({
+                        "candidates": [_row_to_camel(r) for r in candidates],
+                        "votes": [_row_to_camel(r) for r in votes],
+                        "ranking": [_row_to_camel(r) for r in ranking],
+                        "settings": _row_to_camel(settings),
+                        "contacts": [_row_to_camel(r) for r in contacts],
+                        "audit": [_row_to_camel(r) for r in audit],
+                    })
+
                 if path == "/api/candidates":
                     with get_conn() as conn:
                         with conn.cursor(row_factory=dict_row) as cur:
@@ -853,7 +984,7 @@ class Handler(BaseHTTPRequestHandler):
                         with conn.cursor(row_factory=dict_row) as cur:
                             cur.execute("select * from tournament_settings where id = 1")
                             row = cur.fetchone()
-                    return self._send_json(row or {})
+                    return self._send_json(_row_to_camel(row or {}))
 
                 if path == "/api/contact-messages":
                     with get_conn() as conn:
@@ -1595,15 +1726,14 @@ def send_contact_email(full_name, email, subject, message):
 
 if __name__ == "__main__":
     if not db_ready():
-        print("ATTENTION: DATABASE_URL non défini. Les fonctionnalités admin (candidats, scores, etc.) ne fonctionneront pas.")
+        logger.warning("DATABASE_URL non défini. Les fonctionnalités admin (candidats, scores, etc.) ne fonctionneront pas.")
     else:
         try:
             init_db()
-            print("Base de données initialisée.")
+            logger.info("Base de données initialisée.")
         except Exception as e:
-            print(f"ERREUR init base de données: {e}")
-            print(traceback.format_exc())
+            logger.exception("ERREUR init base de données: %s", e)
     port = int(os.environ.get("PORT", "3000"))
     server = HTTPServer(("0.0.0.0", port), Handler)
-    print(f"Serveur démarré sur http://localhost:{port}")
+    logger.info("Serveur démarré sur http://localhost:%s", port)
     server.serve_forever()

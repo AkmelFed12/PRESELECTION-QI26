@@ -107,27 +107,19 @@ async function loadDashboard() {
   if (dashboardLoading) return;
   dashboardLoading = true;
   try {
-    const [candidatesRes, votesRes, rankingRes, settingsRes, contactsRes, auditRes] = await Promise.all([
-      authedFetch('/api/candidates'),
-      authedFetch('/api/votes/summary'),
-      authedFetch('/api/scores/ranking'),
-      authedFetch('/api/tournament-settings'),
-      authedFetch('/api/contact-messages'),
-      authedFetch('/api/admin-audit'),
-    ]);
-
-    if ([candidatesRes, votesRes, rankingRes, settingsRes, contactsRes, auditRes].some((r) => r.status === 401)) {
+    const res = await authedFetch('/api/admin/dashboard');
+    if (res.status === 401) {
       loginMsg.textContent = 'Session invalide.';
       stopAutoRefresh();
       return;
     }
-
-    const candidates = await candidatesRes.json();
-    const votes = await votesRes.json();
-    const ranking = await rankingRes.json();
-    const settings = await settingsRes.json();
-    const contacts = await contactsRes.json();
-    const audit = await auditRes.json();
+    const data = await res.json();
+    const candidates = data.candidates || [];
+    const votes = data.votes || [];
+    const ranking = data.ranking || [];
+    const settings = data.settings || {};
+    const contacts = data.contacts || [];
+    const audit = data.audit || [];
     candidatesCache = Array.isArray(candidates) ? candidates : [];
     votesCache = Array.isArray(votes) ? votes : [];
     rankingCache = Array.isArray(ranking) ? ranking : [];

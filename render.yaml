@@ -13,7 +13,7 @@ services:
           name: preselection-qi26-db
           property: connectionString
       - key: ADMIN_USERNAME
-        value: admin
+        value: asaa2026
       - key: ADMIN_PASSWORD
         value: ASAALMO2026
     buildCommand: "python -m pip install --upgrade pip && pip install -r requirements.txt"
