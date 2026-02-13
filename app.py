@@ -95,9 +95,18 @@ MAX_LENGTHS = {
 _raw_db_url = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/quiz26")
 # Normaliser postgres:// -> postgresql:// (requis par psycopg3 sur certains hébergeurs)
 _url = _raw_db_url.replace("postgres://", "postgresql://", 1) if _raw_db_url.startswith("postgres://") else _raw_db_url
-# Forcer SSL pour Render/Heroku (PostgreSQL distant exige SSL)
+# Forcer SSL et timeout pour Render/Heroku (PostgreSQL distant, base peut être en veille)
 if _url and ("dpg-" in _url or "render.com" in _url or "amazonaws.com" in _url):
-    _url = _url + ("&" if "?" in _url else "?") + "sslmode=require"
+    _sep = "&" if "?" in _url else "?"
+    _url = _url + _sep + "sslmode=require&connect_timeout=60"
+# Render Internal URL (dpg-xxx-a) échoue parfois → convertir en External
+# Région via RENDER_DB_REGION (oregon, ohio, virginia, frankfurt, singapore)
+if _url and "dpg-" in _url and ".render.com" not in _url:
+    _region = os.environ.get("RENDER_DB_REGION", "oregon")
+    _suffix = f".{_region}-postgres.render.com"
+    _m = re.search(r"@(dpg-[a-z0-9]+-a)(/|$)", _url)
+    if _m:
+        _url = _url.replace(_m.group(1), _m.group(1) + _suffix, 1)
 DATABASE_URL = _url
 CLD_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
 CLD_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
